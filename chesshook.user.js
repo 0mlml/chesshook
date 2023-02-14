@@ -3,21 +3,13 @@
 // @include    	https://www.chess.com/*
 // @include		https://lichess.org/*
 // @grant       none
-// @version     0.1
+// @version     0.2
 // @author      0mlml
 // @description QOL
 // @run-at      document-start
 // ==/UserScript==
 
 (() => {
-	document.addEventListener('readystatechange', () => {
-		if (document.readyState === 'interactive') {
-			configInitializer();
-			init();
-			document.addEventListener('keydown', keyPressEventListener);
-		}
-	});
-
 	const configChangeCallback = (input) => {
 		let configKey = input.target ? Object.keys(config).find(k => namespace + config[k].key === input.target.id) : input.key;
 		if (configKey) {
@@ -290,6 +282,13 @@
 			helptext: 'Render hanging pieces',
 			value: true
 		},
+		printBestMove: {
+			key: namespace + '_printbestmove',
+			type: 'checkbox',
+			display: 'Print Best Move',
+			helptext: 'Print best move',
+			value: true
+		},
 		verbose: {
 			key: namespace + '_verbosity',
 			type: 'checkbox',
@@ -309,16 +308,64 @@
 		}
 	}
 
+	// https://briangrinstead.com/blog/load-web-workers-without-a-javascript-file/
+	function makeWorker(script) {
+		var URL = window.URL || window.webkitURL;
+		var Blob = window.Blob;
+		var Worker = window.Worker;
+
+		if (!URL || !Blob || !Worker || !script) {
+			return null;
+		}
+
+		var blob = new Blob([script]);
+		var worker = new Worker(URL.createObjectURL(blob));
+		return worker;
+	}
+
+	window[namespace] = {};
+	window[namespace].engine;
+
+	const uciCmd = (cmd, engine) => {
+		console.log('UCI: ' + cmd);
+
+		(engine || window[namespace].engine).postMessage(cmd);
+	}
+
+	const engineInit = () => {
+		addToConsole('Initializing engine...');
+		fetch('https://raw.githubusercontent.com/nmrugg/stockfish.js/master/src/stockfish.js').then(r => r.text()).then(t => {
+			addToConsole('Engine downloaded.');
+			window[namespace].engine = makeWorker(t);
+			uciCmd('uci');
+			uciCmd('setoption name Use NNUE value true');
+			uciCmd('setoption name Threads value 1');
+
+			window[namespace].engine.onmessage = function (event) {
+				if (event.data === 'uciok') {
+					uciCmd('isready');
+				}
+				if (event.data === 'readyok') {
+					addToConsole('Engine ready');
+				}
+				if (event.data.startsWith('bestmove')) {
+					let bestMove = event.data.split(' ')[1];
+					addToConsole('Best move for current position: ' + bestMove);
+				}
+			};
+			addToConsole('Engine initialized.');
+		});
+	}
+
 	const init = () => {
 		makeConsole();
-		window.config = config;
 		addToConsole(`Loaded! This is version ${GM_info.script.version}`);
+		engineInit();
 	}
 
 	const getElementsAfterIndex = (a1, a2) => (a1.length > a2.length ? a1 : a2)
 		.filter((_, i) => i >= Math.min(a1.length, a2.length));
 
-	window[namespace] = {};
 	window[namespace].lastFEN = '';
 	window[namespace].lastPos = {};
 
@@ -342,16 +389,14 @@
 		return file + rank;
 	}
 
-	let lastMarkings = [];
-
 	const updateLoop = () => {
-		if (config.renderHanging) {
-			let fen = '';
-			if (document.location.hostname === 'www.chess.com') {
-				let board = document.getElementsByTagName('chess-board')[0];
-				if (board?.game?.getFEN) fen = board.game.getFEN();
-			}
+		let fen = '';
+		if (document.location.hostname === 'www.chess.com') {
+			let board = document.getElementsByTagName('chess-board')[0];
+			if (board?.game?.getFEN) fen = board.game.getFEN();
+		}
 
+		if (config.renderHanging) {
 			if (fen && fen !== window[namespace].lastFEN) {
 				addToConsole('Marking unprotected...');
 				const toMove = fen.split(' ')[1];
@@ -371,35 +416,29 @@
 										if (!tile.isProtected) {
 											markings.push({ type: 'highlight', data: { square: xyToCoord(i, j) } });
 										}
-										if (tile.isThreatened) {
+										if (tile.isThreatened && !tile.isProtected) {
 											let isWhite = tile.piece === tile.piece.toUpperCase();
 											if ((isWhite && toMove === 'w' || !isWhite && toMove === 'b')) continue;
-											let defendingValue = getPieceValue(tile.piece);
-											let attackingValue = 0;
 
-											let tradeMarkings = [];
 											for (const threat of tile.threatenedBy) {
-												tradeMarkings.push({ type: 'arrow', data: { from: xyToCoord(threat[0], threat[1]), to: xyToCoord(i, j) } });
-												attackingValue += getPieceValue(position[threat[0]][threat[1]].piece);
-											}
-
-											defendingValue += tile.protectedBy.reduce((acc, val) => acc + getPieceValue(position[val[0]][val[1]].piece), 0);
-
-											if (defendingValue <= attackingValue) {
-												markings.push({ type: 'highlight', data: { square: xyToCoord(i, j) } });
-												markings.push(...tradeMarkings);
-												addToConsole(`Warning! ${xyToCoord(i, j)} is ${defendingValue}pt material diff!`);
+												markings.push({ type: 'arrow', data: { from: xyToCoord(threat[0], threat[1]), to: xyToCoord(i, j) } });
 											}
 										}
 									}
 								}
 							}
-							lastMarkings = markings;
 							board.game.markings.addMany(markings);
 						}
 					}
 				}
 				window[namespace].lastFEN = fen;
+			}
+		}
+		if (config.printBestMove) {
+			if (fen && fen !== window[namespace].lastFEN) {
+				addToConsole('Calculating best move...');
+				uciCmd('position fen ' + fen);
+				uciCmd('go depth 13');
 			}
 		}
 	}
@@ -679,4 +718,12 @@
 
 		return position;
 	}
+
+	document.addEventListener('readystatechange', () => {
+		if (document.readyState === 'interactive') {
+			configInitializer();
+			init();
+			document.addEventListener('keydown', keyPressEventListener);
+		}
+	});
 })();
