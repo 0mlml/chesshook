@@ -3,7 +3,7 @@
 // @include    	https://www.chess.com/*
 // @include		https://lichess.org/*
 // @grant       none
-// @require		https://github.com/0mlml/chesshook/blob/master/betafish.js
+// @require		https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
 // @version     0.2
 // @author      0mlml
 // @description QOL
