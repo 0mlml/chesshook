@@ -21,6 +21,11 @@
 				case 'text':
 					config[configKey].value = input.target.value;
 					break;
+				case 'dropdown':
+					if (config[configKey].options.includes(input.target.value)) {
+						config[configKey].value = input.target.value;
+					}
+					break;
 				case 'hidden':
 					config[configKey].value = input.value;
 					break;
@@ -139,7 +144,7 @@
 	}
 
 	const makeConsole = () => {
-		let css = `div#chesshook_windowmain{overflow:auto;resize:both;position:fixed;min-height:30vh;min-width:30vw;aspect-ratio:1.7;background:#000;display:none;flex-direction:column;align-items:center;z-index:10000990;box-shadow:0 0 10px #000;border-radius:2px;border:2px solid #222;color:#ccc;font-family:monospace}div#chesshook_windowmain button{background-color:#000;margin:0 0 0 .5vw;}span#chesshook_windowmain_headerbar{top:0;left:0;margin:0;width:100%;height:3vh;background:#828282;display:flex;flex-direction:column;cursor:move}span#chesshook_windowmain_topdecoline{width:100%;height:10%;margin:0;padding:0;background:linear-gradient(to right,red,orange,#ff0,green,#00f,indigo,violet)}div#chesshook_windowmain_tabs{width:100%;height:90%;margin:0;padding:0;background-color:#000;border-bottom:2px solid #222;display:flex;flex-direction:row;cursor:move}div#chesshook_windowmain_tabs_title{margin:0;padding:0;display:flex;align-items:center;align-content:center;user-select:none;flex-grow:1000}div#chesshook_windowmain_tabs_x{height:calc(100%-3px);background:#222;aspect-ratio:1;margin:0;padding:0;display:flex;align-items:center;align-content:center;justify-content:center;cursor:pointer;border:2px solid #222;border-radius:5px}div#chesshook_windowmain_menutoggle{display:block;-webkit-user-select:none;user-select:none;height:calc(100%-3px);aspect-ratio:1;margin:0;padding:3px}div#chesshook_windowmain_menutoggle input{display:block;width:40px;height:32px;position:absolute;top:-7px;left:-5px;cursor:pointer;opacity:0;z-index:10000994;-webkit-touch-callout:none}ul#chesshook_windowmain_menutoggle_menu{list-style-type:none;-webkit-font-smoothing:antialiased;opacity:0;transition:opacity .5s cubic-bezier(.77, .2, .05, 1);width:7vw;background-color:#000;position:absolute;top:3vh;left:0;border:2px solid #222;border-radius:5px;padding:0;flex-direction:column;align-items:stretch;z-index:10000991}ul#chesshook_windowmain_menutoggle_menu>li{height:3.5vh;background-color:#000;border-bottom:2px solid #222;text-align:center;line-height:3.5vh;font-size:1.75vh;color:#fff;font-family:monospace;user-select:none;cursor:pointer;text-decoration:none}div#chesshook_windowmain_menutoggle span{display:block;width:24px;height:3px;margin-bottom:3px;position:relative;background:#cdcdcd;border-radius:3px;z-index:10000992;transform-origin:4px 0px;transition:transform .5s cubic-bezier(.77, .2, .05, 1),background .5s cubic-bezier(.77, .2, .05, 1),opacity .55s}div#chesshook_windowmain_menutoggle span:first-child{transform-origin:0% 0%}div#chesshook_windowmain_menutoggle span:nth-last-child(2){transform-origin:0% 100%}div#chesshook_windowmain_menutoggle input:checked~span{opacity:1;transform:rotate(45deg) translate(-2px,-1px)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(3){opacity:0;transform:rotate(0) scale(.2,.2)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(2){transform:rotate(-45deg) translate(0,-1px)}div#chesshook_windowmain_menutoggle input:checked~ul{opacity:1}div#chesshook_windowmain_viewportcontainer{width:100%;height:90%;position:absolute;margin:0;padding:0;top:10%;left:0}div#chesshook_consolevp{width:100%;height:100%;overflow-y:scroll;flex-direction:column}div#chesshook_settingsvp{width:100%;height:100%;overflow-y:scroll;display:none;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:center}div#chesshook_settingsvp_left{padding:13px;display:flex;flex-direction:column;align-items:left;align-content:stretch;justify-content:center}div#chesshook_settingsvp_right{padding:12px;display:flex;flex-direction:column;align-items:center;align-content:stretch;justify-content:center}`;
+		let css = `div#chesshook_windowmain{overflow:auto;resize:both;position:fixed;min-height:30vh;min-width:30vw;aspect-ratio:1.7;background:#000;display:none;flex-direction:column;align-items:center;z-index:10000990;box-shadow:0 0 10px #000;border-radius:2px;border:2px solid #222;color:#ccc;font-family:monospace}div#chesshook_windowmain button{background-color:#000;margin:0 0 0 .5vw;}span#chesshook_windowmain_headerbar{top:0;left:0;margin:0;width:100%;height:3vh;background:#828282;display:flex;flex-direction:column;cursor:move}span#chesshook_windowmain_topdecoline{width:100%;height:10%;margin:0;padding:0;background:linear-gradient(to right,red,orange,#ff0,green,#00f,indigo,violet)}div#chesshook_windowmain_tabs{width:100%;height:90%;margin:0;padding:0;background-color:#000;border-bottom:2px solid #222;display:flex;flex-direction:row;cursor:move}div#chesshook_windowmain_tabs_title{margin:0;padding:0;display:flex;align-items:center;align-content:center;user-select:none;flex-grow:1000}div#chesshook_windowmain_tabs_x{height:calc(100%-3px);background:#222;aspect-ratio:1;margin:0;padding:0;display:flex;align-items:center;align-content:center;justify-content:center;cursor:pointer;border:2px solid #222;border-radius:5px}div#chesshook_windowmain_menutoggle{display:block;-webkit-user-select:none;user-select:none;height:calc(100%-3px);aspect-ratio:1;margin:0;padding:3px}div#chesshook_windowmain_menutoggle input{display:block;width:40px;height:32px;position:absolute;top:-7px;left:-5px;cursor:pointer;opacity:0;z-index:10000994;-webkit-touch-callout:none}ul#chesshook_windowmain_menutoggle_menu{margin:0;list-style-type:none;-webkit-font-smoothing:antialiased;opacity:0;transition:opacity .5s cubic-bezier(.77, .2, .05, 1);width:7vw;background-color:#000;position:absolute;top:3vh;left:0;border:2px solid #222;border-radius:5px;padding:0;flex-direction:column;align-items:stretch;z-index:10000991}ul#chesshook_windowmain_menutoggle_menu>li{height:3.5vh;background-color:#000;border-bottom:2px solid #222;text-align:center;line-height:3.5vh;font-size:1.75vh;color:#fff;font-family:monospace;user-select:none;cursor:pointer;text-decoration:none}div#chesshook_windowmain_menutoggle span{display:block;width:24px;height:3px;margin-bottom:3px;position:relative;background:#cdcdcd;border-radius:3px;z-index:10000992;transform-origin:4px 0px;transition:transform .5s cubic-bezier(.77, .2, .05, 1),background .5s cubic-bezier(.77, .2, .05, 1),opacity .55s}div#chesshook_windowmain_menutoggle span:first-child{transform-origin:0% 0%}div#chesshook_windowmain_menutoggle span:nth-last-child(2){transform-origin:0% 100%}div#chesshook_windowmain_menutoggle input:checked~span{opacity:1;transform:rotate(45deg) translate(-2px,-1px)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(3){opacity:0;transform:rotate(0) scale(.2,.2)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(2){transform:rotate(-45deg) translate(0,-1px)}div#chesshook_windowmain_menutoggle input:checked~ul{opacity:1}div#chesshook_windowmain_viewportcontainer{width:100%;height:90%;position:absolute;margin:0;padding:0;top:10%;left:0}div#chesshook_consolevp{width:100%;height:100%;overflow-y:scroll;flex-direction:column}div#chesshook_settingsvp{width:100%;height:100%;overflow-y:scroll;display:none;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:center}div#chesshook_settingsvp_left{padding:13px;display:flex;flex-direction:column;align-items:left;align-content:stretch;justify-content:center}div#chesshook_settingsvp_right{padding:12px;display:flex;flex-direction:column;align-items:center;align-content:stretch;justify-content:center}`;
 		const styleSheetNode = document.createElement('style');
 
 		if (styleSheetNode.styleSheet) styleSheetNode.styleSheet.cssText = css;
@@ -248,6 +253,17 @@
 					elem = document.createElement('input');
 					elem.type = 'text';
 					break;
+				case 'dropdown':
+					elem = document.createElement('select');
+					for (const opt of config[k].options) {
+						const optElem = document.createElement('option');
+						optElem.value = opt;
+						optElem.innerText = opt;
+						elem.appendChild(optElem);
+					}
+					elem.value = config[k].value;
+					break;
+
 			}
 			elem.title = config[k].helptext;
 			elem.id = namespace + config[k].key;
@@ -293,12 +309,13 @@
 			helptext: 'Print and render best move',
 			value: true
 		},
-		verbose: {
-			key: namespace + '_verbosity',
-			type: 'checkbox',
-			display: '(Debug) Verbose',
-			helptext: '(Debug) Be verbose',
-			value: false
+		playingAs: {
+			key: namespace + '_playingas',
+			type: 'dropdown',
+			display: 'Playing As',
+			helptext: 'What color to calculate moves for',
+			value: 'both',
+			options: ['both', 'white', 'black']
 		},
 		renderWindow: {
 			key: namespace + '_renderwindow',
@@ -352,80 +369,108 @@
 
 	let didWarnCalcHangingOverride = false;
 
+	const renderHanging = (fen) => {
+		addToConsole('Marking unprotected...');
+
+		let position = parsePositionPieceRelations(fen);
+		if (!position) return false;
+		window[namespace].lastPos = position;
+
+		if (document.location.hostname === 'www.chess.com') {
+			chesscomRenderHanging(fen, position);
+		} else if (document.location.hostname === 'lichess.org') {
+			lichessRenderHanging(position);
+		}
+	}
+
+	const chesscomRenderHanging = (fen, position) => {
+		const toMove = fen.split(' ')[1];
+
+		let board = document.getElementsByTagName('chess-board')[0];
+		if (!board?.game?.markings?.addMany || !board?.game?.markings?.removeAll) return false;
+		board.game.markings.removeAll();
+		let markings = [];
+		for (let i = 0; i < position.length; i++) {
+			for (let j = 0; j < position[i].length; j++) {
+				const tile = position[i][j];
+				if (!tile) continue;
+				if (!tile.isProtected) {
+					markings.push({ type: 'highlight', data: { square: xyToCoord(i, j) } });
+				}
+				if (!tile.isThreatened || tile.isProtected) continue;
+				if (!config.calcBestMove.value) {
+					let isWhite = tile.piece === tile.piece.toUpperCase();
+					if ((isWhite && toMove === 'w' || !isWhite && toMove === 'b')) continue;
+
+					for (const threat of tile.threatenedBy) {
+						markings.push({ type: 'arrow', data: { from: xyToCoord(threat[0], threat[1]), to: xyToCoord(i, j) } });
+					}
+				} else if (!didWarnCalcHangingOverride) {
+					addToConsole('calcBestMove will override the arrows from renderHanging');
+					didWarnCalcHangingOverride = true;
+				}
+			}
+		}
+		board.game.markings.addMany(markings);
+	}
+
+	const lichessRenderHanging = (fen, position) => {
+		// not impl
+	}
+
+
+	const calcBestMove = (fen) => {
+		const toMove = fen.split(' ')[1];
+		if (config.playingAs.value !== 'both' && (config.playingAs.value === 'white') !== (toMove === 'w')) return false;
+
+		addToConsole('Calculating best move...');
+
+		window[namespace].engine.setFEN(fen);
+		let move = window[namespace].engine.getBestMove();
+		const squareToRankFile = (sq) => [Math.floor((sq - 21) / 10), sq - 21 - Math.floor((sq - 21) / 10) * 10];
+
+		const from = squareToRankFile(move & 0x7f);
+		const to = squareToRankFile((move >> 7) & 0x7f);
+
+		addToConsole(`Computed best for ${toMove === 'w' ? 'white' : 'black'}: ${xyToCoordInverted(from[0], from[1])}->${xyToCoordInverted(to[0], to[1])}`);
+		if (document.location.hostname === 'www.chess.com') {
+			chesscomRenderBestMove(from, to);
+		} else if (document.location.hostname === 'lichess.org') {
+			lichessRenderBestMove(from, to);
+		}
+	}
+
+	const chesscomRenderBestMove = (from, to) => {
+		let board = document.getElementsByTagName('chess-board')[0];
+		if (!board?.game?.markings?.addOne || !board?.game?.markings?.removeAll) return false;
+
+		if (!config.renderHanging.value) board.game.markings.removeAll();
+
+		board.game.markings.addOne({ type: 'arrow', data: { from: xyToCoordInverted(from[0], from[1]), to: xyToCoordInverted(to[0], to[1]) } });
+	}
+
+	const lichessRenderBestMove = (from, to) => {
+		// not impl
+	}
+
 	const updateLoop = () => {
-		let fen = '';
+		let fen;
 		if (document.location.hostname === 'www.chess.com') {
 			let board = document.getElementsByTagName('chess-board')[0];
 			if (board?.game?.getFEN) fen = board.game.getFEN();
 		}
 
-		if (config.renderHanging.value) {
-			if (fen && fen !== window[namespace].lastFEN) {
-				addToConsole('Marking unprotected...');
-				const toMove = fen.split(' ')[1];
-				let position = parsePositionPieceRelations(fen);
+		if (!fen) return;
 
-				if (position) {
-					window[namespace].lastPos = position;
-					if (document.location.hostname === 'www.chess.com') {
-						let board = document.getElementsByTagName('chess-board')[0];
-						if (board?.game?.markings?.addMany && board?.game?.markings?.removeAll) {
-							board.game.markings.removeAll();
-							let markings = [];
-							for (let i = 0; i < position.length; i++) {
-								for (let j = 0; j < position[i].length; j++) {
-									const tile = position[i][j];
-									if (tile) {
-										if (!tile.isProtected) {
-											markings.push({ type: 'highlight', data: { square: xyToCoord(i, j) } });
-										}
-										if (tile.isThreatened && !tile.isProtected) {
-											if (!config.calcBestMove.value) {
-												let isWhite = tile.piece === tile.piece.toUpperCase();
-												if ((isWhite && toMove === 'w' || !isWhite && toMove === 'b')) continue;
+		if (config.renderHanging.value && fen !== window[namespace].lastFEN) {
+			renderHanging(fen);
+		}
 
-												for (const threat of tile.threatenedBy) {
-													markings.push({ type: 'arrow', data: { from: xyToCoord(threat[0], threat[1]), to: xyToCoord(i, j) } });
-												}
-											} else if (!didWarnCalcHangingOverride) {
-												addToConsole('calcBestMove will override the arrows from renderHanging');
-												didWarnCalcHangingOverride = true;
-											}
-										}
-									}
-								}
-							}
-							board.game.markings.addMany(markings);
-						}
-					}
-				}
-				window[namespace].lastFEN = fen;
-			}
+		if (config.calcBestMove.value && fen !== window[namespace].lastFEN) {
+			calcBestMove(fen);
 		}
-		if (config.calcBestMove.value) {
-			if (fen && fen !== window[namespace].lastFEN) {
-				window[namespace].lastFEN = fen;
-				const toMove = fen.split(' ')[1];
-				addToConsole('Calculating best move...');
-				window[namespace].engine.setFEN(fen);
-				let move = window[namespace].engine.getBestMove();
-				const squareToRankFile = (sq) => {
-					const rank = Math.floor((sq - 21) / 10);
-					const file = sq - 21 - rank * 10;
-					return [rank, file];
-				}
-				const from = squareToRankFile(move & 0x7f);
-				const to = squareToRankFile((move >> 7) & 0x7f);
-				addToConsole(`Computed best for ${toMove === 'w' ? 'white' : 'black'}: ${xyToCoordInverted(from[0], from[1])}->${xyToCoordInverted(to[0], to[1])}`);
-				if (document.location.hostname === 'www.chess.com') {
-					let board = document.getElementsByTagName('chess-board')[0];
-					if (board?.game?.markings?.addOne && board?.game?.markings?.removeAll) {
-						if (!config.renderHanging.value) board.game.markings.removeAll();
-						board.game.markings.addOne({ type: 'arrow', data: { from: xyToCoordInverted(from[0], from[1]), to: xyToCoordInverted(to[0], to[1]) } });
-					}
-				}
-			}
-		}
+
+		window[namespace].lastFEN = fen;
 	}
 
 	window[namespace].updateLoop = setInterval(updateLoop, 300);
