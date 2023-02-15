@@ -3,6 +3,7 @@
 // @include    	https://www.chess.com/*
 // @include		https://lichess.org/*
 // @grant       none
+// @require		https://github.com/0mlml/chesshook/blob/master/betafish.js
 // @version     0.2
 // @author      0mlml
 // @description QOL
@@ -26,8 +27,18 @@
 			}
 			window.localStorage.setItem(config[configKey].key, config[configKey].value);
 		}
+
 		if (config.renderWindow.value) document.getElementById(namespace + '_windowmain').style.display = 'flex';
 		else document.getElementById(namespace + '_windowmain').style.display = 'none';
+
+		if (!config.renderHanging.value) {
+			if (document.location.hostname === 'www.chess.com') {
+				let board = document.getElementsByTagName('chess-board')[0];
+				if (board?.game?.markings?.removeAll) {
+					board.game.markings.removeAll();
+				}
+			}
+		}
 	}
 
 	const keyPressEventListener = e => {
@@ -128,7 +139,7 @@
 	}
 
 	const makeConsole = () => {
-		let css = `div#chesshook_windowmain{overflow:auto;resize:both;position:fixed;min-height:30vh;min-width:50vw;aspect-ratio:1.7;background:#000;display:none;flex-direction:column;align-items:center;z-index:10000990;box-shadow:0 0 10px #000;border-radius:2px;border:2px solid #222;color:#ccc;font-family:monospace}div#chesshook_windowmain button{background-color:#000;margin:0 0 0 .5vw;}span#chesshook_windowmain_headerbar{top:0;left:0;margin:0;width:100%;height:3vh;background:#828282;display:flex;flex-direction:column;cursor:move}span#chesshook_windowmain_topdecoline{width:100%;height:10%;margin:0;padding:0;background:linear-gradient(to right,red,orange,#ff0,green,#00f,indigo,violet)}div#chesshook_windowmain_tabs{width:100%;height:90%;margin:0;padding:0;background-color:#000;border-bottom:2px solid #222;display:flex;flex-direction:row;cursor:move}div#chesshook_windowmain_tabs_title{margin:0;padding:0;display:flex;align-items:center;align-content:center;user-select:none;flex-grow:1000}div#chesshook_windowmain_tabs_x{height:calc(100%-3px);background:#222;aspect-ratio:1;margin:0;padding:0;display:flex;align-items:center;align-content:center;justify-content:center;cursor:pointer;border:2px solid #222;border-radius:5px}div#chesshook_windowmain_menutoggle{display:block;-webkit-user-select:none;user-select:none;height:calc(100%-3px);aspect-ratio:1;margin:0;padding:3px}div#chesshook_windowmain_menutoggle input{display:block;width:40px;height:32px;position:absolute;top:-7px;left:-5px;cursor:pointer;opacity:0;z-index:10000994;-webkit-touch-callout:none}ul#chesshook_windowmain_menutoggle_menu{list-style-type:none;-webkit-font-smoothing:antialiased;opacity:0;transition:opacity .5s cubic-bezier(.77, .2, .05, 1);width:7vw;background-color:#000;position:absolute;top:3vh;left:0;border:2px solid #222;border-radius:5px;padding:0;flex-direction:column;align-items:stretch;z-index:10000991}ul#chesshook_windowmain_menutoggle_menu>li{height:3.5vh;background-color:#000;border-bottom:2px solid #222;text-align:center;line-height:3.5vh;font-size:1.75vh;color:#fff;font-family:monospace;user-select:none;cursor:pointer;text-decoration:none}div#chesshook_windowmain_menutoggle span{display:block;width:24px;height:3px;margin-bottom:3px;position:relative;background:#cdcdcd;border-radius:3px;z-index:10000992;transform-origin:4px 0px;transition:transform .5s cubic-bezier(.77, .2, .05, 1),background .5s cubic-bezier(.77, .2, .05, 1),opacity .55s}div#chesshook_windowmain_menutoggle span:first-child{transform-origin:0% 0%}div#chesshook_windowmain_menutoggle span:nth-last-child(2){transform-origin:0% 100%}div#chesshook_windowmain_menutoggle input:checked~span{opacity:1;transform:rotate(45deg) translate(-2px,-1px)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(3){opacity:0;transform:rotate(0) scale(.2,.2)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(2){transform:rotate(-45deg) translate(0,-1px)}div#chesshook_windowmain_menutoggle input:checked~ul{opacity:1}div#chesshook_windowmain_viewportcontainer{width:100%;height:90%;position:absolute;margin:0;padding:0;top:10%;left:0}div#chesshook_consolevp{width:100%;height:100%;overflow-y:scroll;flex-direction:column}div#chesshook_settingsvp{width:100%;height:100%;overflow-y:scroll;display:none;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:center}div#chesshook_settingsvp_left{padding:13px;display:flex;flex-direction:column;align-items:left;align-content:stretch;justify-content:center}div#chesshook_settingsvp_right{padding:12px;display:flex;flex-direction:column;align-items:center;align-content:stretch;justify-content:center}`;
+		let css = `div#chesshook_windowmain{overflow:auto;resize:both;position:fixed;min-height:30vh;min-width:30vw;aspect-ratio:1.7;background:#000;display:none;flex-direction:column;align-items:center;z-index:10000990;box-shadow:0 0 10px #000;border-radius:2px;border:2px solid #222;color:#ccc;font-family:monospace}div#chesshook_windowmain button{background-color:#000;margin:0 0 0 .5vw;}span#chesshook_windowmain_headerbar{top:0;left:0;margin:0;width:100%;height:3vh;background:#828282;display:flex;flex-direction:column;cursor:move}span#chesshook_windowmain_topdecoline{width:100%;height:10%;margin:0;padding:0;background:linear-gradient(to right,red,orange,#ff0,green,#00f,indigo,violet)}div#chesshook_windowmain_tabs{width:100%;height:90%;margin:0;padding:0;background-color:#000;border-bottom:2px solid #222;display:flex;flex-direction:row;cursor:move}div#chesshook_windowmain_tabs_title{margin:0;padding:0;display:flex;align-items:center;align-content:center;user-select:none;flex-grow:1000}div#chesshook_windowmain_tabs_x{height:calc(100%-3px);background:#222;aspect-ratio:1;margin:0;padding:0;display:flex;align-items:center;align-content:center;justify-content:center;cursor:pointer;border:2px solid #222;border-radius:5px}div#chesshook_windowmain_menutoggle{display:block;-webkit-user-select:none;user-select:none;height:calc(100%-3px);aspect-ratio:1;margin:0;padding:3px}div#chesshook_windowmain_menutoggle input{display:block;width:40px;height:32px;position:absolute;top:-7px;left:-5px;cursor:pointer;opacity:0;z-index:10000994;-webkit-touch-callout:none}ul#chesshook_windowmain_menutoggle_menu{list-style-type:none;-webkit-font-smoothing:antialiased;opacity:0;transition:opacity .5s cubic-bezier(.77, .2, .05, 1);width:7vw;background-color:#000;position:absolute;top:3vh;left:0;border:2px solid #222;border-radius:5px;padding:0;flex-direction:column;align-items:stretch;z-index:10000991}ul#chesshook_windowmain_menutoggle_menu>li{height:3.5vh;background-color:#000;border-bottom:2px solid #222;text-align:center;line-height:3.5vh;font-size:1.75vh;color:#fff;font-family:monospace;user-select:none;cursor:pointer;text-decoration:none}div#chesshook_windowmain_menutoggle span{display:block;width:24px;height:3px;margin-bottom:3px;position:relative;background:#cdcdcd;border-radius:3px;z-index:10000992;transform-origin:4px 0px;transition:transform .5s cubic-bezier(.77, .2, .05, 1),background .5s cubic-bezier(.77, .2, .05, 1),opacity .55s}div#chesshook_windowmain_menutoggle span:first-child{transform-origin:0% 0%}div#chesshook_windowmain_menutoggle span:nth-last-child(2){transform-origin:0% 100%}div#chesshook_windowmain_menutoggle input:checked~span{opacity:1;transform:rotate(45deg) translate(-2px,-1px)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(3){opacity:0;transform:rotate(0) scale(.2,.2)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(2){transform:rotate(-45deg) translate(0,-1px)}div#chesshook_windowmain_menutoggle input:checked~ul{opacity:1}div#chesshook_windowmain_viewportcontainer{width:100%;height:90%;position:absolute;margin:0;padding:0;top:10%;left:0}div#chesshook_consolevp{width:100%;height:100%;overflow-y:scroll;flex-direction:column}div#chesshook_settingsvp{width:100%;height:100%;overflow-y:scroll;display:none;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:center}div#chesshook_settingsvp_left{padding:13px;display:flex;flex-direction:column;align-items:left;align-content:stretch;justify-content:center}div#chesshook_settingsvp_right{padding:12px;display:flex;flex-direction:column;align-items:center;align-content:stretch;justify-content:center}`;
 		const styleSheetNode = document.createElement('style');
 
 		if (styleSheetNode.styleSheet) styleSheetNode.styleSheet.cssText = css;
@@ -308,63 +319,13 @@
 		}
 	}
 
-	// https://briangrinstead.com/blog/load-web-workers-without-a-javascript-file/
-	function makeWorker(script) {
-		var URL = window.URL || window.webkitURL;
-		var Blob = window.Blob;
-		var Worker = window.Worker;
-
-		if (!URL || !Blob || !Worker || !script) {
-			return null;
-		}
-
-		var blob = new Blob([script]);
-		var worker = new Worker(URL.createObjectURL(blob));
-		return worker;
-	}
-
 	window[namespace] = {};
-	window[namespace].engine;
-
-	const uciCmd = (cmd, engine) => {
-		console.log('UCI: ' + cmd);
-
-		(engine || window[namespace].engine).postMessage(cmd);
-	}
-
-	const engineInit = () => {
-		addToConsole('Initializing engine...');
-		fetch('https://raw.githubusercontent.com/nmrugg/stockfish.js/master/src/stockfish.js').then(r => r.text()).then(t => {
-			addToConsole('Engine downloaded.');
-			window[namespace].engine = makeWorker(t);
-			uciCmd('uci');
-			uciCmd('setoption name Use NNUE value true');
-			uciCmd('setoption name Threads value 1');
-
-			window[namespace].engine.onmessage = function (event) {
-				if (event.data === 'uciok') {
-					uciCmd('isready');
-				}
-				if (event.data === 'readyok') {
-					addToConsole('Engine ready');
-				}
-				if (event.data.startsWith('bestmove')) {
-					let bestMove = event.data.split(' ')[1];
-					addToConsole('Best move for current position: ' + bestMove);
-				}
-			};
-			addToConsole('Engine initialized.');
-		});
-	}
+	window[namespace].engine = new engine();
 
 	const init = () => {
 		makeConsole();
 		addToConsole(`Loaded! This is version ${GM_info.script.version}`);
-		engineInit();
 	}
-
-	const getElementsAfterIndex = (a1, a2) => (a1.length > a2.length ? a1 : a2)
-		.filter((_, i) => i >= Math.min(a1.length, a2.length));
 
 	window[namespace].lastFEN = '';
 	window[namespace].lastPos = {};
@@ -396,7 +357,7 @@
 			if (board?.game?.getFEN) fen = board.game.getFEN();
 		}
 
-		if (config.renderHanging) {
+		if (config.renderHanging.value) {
 			if (fen && fen !== window[namespace].lastFEN) {
 				addToConsole('Marking unprotected...');
 				const toMove = fen.split(' ')[1];
@@ -434,11 +395,14 @@
 				window[namespace].lastFEN = fen;
 			}
 		}
-		if (config.printBestMove) {
+		if (config.printBestMove.value) {
 			if (fen && fen !== window[namespace].lastFEN) {
+				window[namespace].lastFEN = fen;
 				addToConsole('Calculating best move...');
-				uciCmd('position fen ' + fen);
-				uciCmd('go depth 13');
+				window[namespace].engine.setFEN(fen);
+				window[namespace].engine.makeAIMove();
+				let move = findChessMove(fen, window[namespace].engine.getFEN());
+				addToConsole('Computed: ' + move);
 			}
 		}
 	}
@@ -651,8 +615,7 @@
 				for (let j = -1; j <= 1; j++) {
 					// Check that move doesn't go out of the board and doesn't stay in the same place
 					if ((x + i) >= 0 && (x + i) < 8 && (y + j) >= 0 && (y + j) < 8 && !(i === 0 && j === 0)) {
-						// Check that destination tile is empty or contains an opponent piece
-						if (position[x + i][y + j] === null || !position[x + i][y + j].isThreatened) {
+						if (position[x + i][y + j] === null) {
 							moves.push([x + i, y + j]);
 						}
 					}
@@ -706,7 +669,6 @@
 								targetTile.isProtected = true;
 								targetTile.protectedBy.push([i, j, tile.piece.toLowerCase()]);
 							} else {
-								// console.log(xyToCoord(i, j), tile, moves.map(a => xyToCoord(a[0], a[1])));
 								targetTile.isThreatened = true;
 								targetTile.threatenedBy.push([i, j, tile.piece.toLowerCase()]);
 							}
