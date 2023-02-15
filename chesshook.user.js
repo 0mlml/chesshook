@@ -269,13 +269,6 @@
 			settingsViewportDiv.style.display = 'flex';
 		});
 
-		navMenuUnorderedList.addButton('Chess.com').addEventListener('click', e => {
-			viewportContainerDiv.childNodes.forEach(el => {
-				el.style.display = 'none';
-			});
-			chesscomViewportDiv.style.display = 'flex';
-		});
-
 		document.body.appendChild(mainDiv);
 		makeDraggable(mainDiv, 'windowPlot');
 
@@ -293,11 +286,11 @@
 			helptext: 'Render hanging pieces',
 			value: true
 		},
-		printBestMove: {
-			key: namespace + '_printbestmove',
+		calcBestMove: {
+			key: namespace + '_calculatebestmove',
 			type: 'checkbox',
-			display: 'Print Best Move',
-			helptext: 'Print best move',
+			display: 'Calculate Best Move',
+			helptext: 'Print and render best move',
 			value: true
 		},
 		verbose: {
@@ -350,6 +343,15 @@
 		return file + rank;
 	}
 
+	const xyToCoordInverted = (x, y) => {
+		const letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+		const file = letters[y];
+		const rank = x + 1;
+		return file + rank;
+	}
+
+	let didWarnCalcHangingOverride = false;
+
 	const updateLoop = () => {
 		let fen = '';
 		if (document.location.hostname === 'www.chess.com') {
@@ -378,11 +380,16 @@
 											markings.push({ type: 'highlight', data: { square: xyToCoord(i, j) } });
 										}
 										if (tile.isThreatened && !tile.isProtected) {
-											let isWhite = tile.piece === tile.piece.toUpperCase();
-											if ((isWhite && toMove === 'w' || !isWhite && toMove === 'b')) continue;
+											if (!config.calcBestMove.value) {
+												let isWhite = tile.piece === tile.piece.toUpperCase();
+												if ((isWhite && toMove === 'w' || !isWhite && toMove === 'b')) continue;
 
-											for (const threat of tile.threatenedBy) {
-												markings.push({ type: 'arrow', data: { from: xyToCoord(threat[0], threat[1]), to: xyToCoord(i, j) } });
+												for (const threat of tile.threatenedBy) {
+													markings.push({ type: 'arrow', data: { from: xyToCoord(threat[0], threat[1]), to: xyToCoord(i, j) } });
+												}
+											} else if (!didWarnCalcHangingOverride) {
+												addToConsole('calcBestMove will override the arrows from renderHanging');
+												didWarnCalcHangingOverride = true;
 											}
 										}
 									}
@@ -395,14 +402,28 @@
 				window[namespace].lastFEN = fen;
 			}
 		}
-		if (config.printBestMove.value) {
+		if (config.calcBestMove.value) {
 			if (fen && fen !== window[namespace].lastFEN) {
 				window[namespace].lastFEN = fen;
+				const toMove = fen.split(' ')[1];
 				addToConsole('Calculating best move...');
 				window[namespace].engine.setFEN(fen);
-				window[namespace].engine.makeAIMove();
-				let move = findChessMove(fen, window[namespace].engine.getFEN());
-				addToConsole('Computed: ' + move);
+				let move = window[namespace].engine.getBestMove();
+				const squareToRankFile = (sq) => {
+					const rank = Math.floor((sq - 21) / 10);
+					const file = sq - 21 - rank * 10;
+					return [rank, file];
+				}
+				const from = squareToRankFile(move & 0x7f);
+				const to = squareToRankFile((move >> 7) & 0x7f);
+				addToConsole(`Computed best for ${toMove === 'w' ? 'white' : 'black'}: ${xyToCoordInverted(from[0], from[1])}->${xyToCoordInverted(to[0], to[1])}`);
+				if (document.location.hostname === 'www.chess.com') {
+					let board = document.getElementsByTagName('chess-board')[0];
+					if (board?.game?.markings?.addOne && board?.game?.markings?.removeAll) {
+						if (!config.renderHanging.value) board.game.markings.removeAll();
+						board.game.markings.addOne({ type: 'arrow', data: { from: xyToCoordInverted(from[0], from[1]), to: xyToCoordInverted(to[0], to[1]) } });
+					}
+				}
 			}
 		}
 	}
