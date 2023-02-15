@@ -4,7 +4,7 @@
 // @include		https://lichess.org/*
 // @grant       none
 // @require		https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     0.2
+// @version     0.4
 // @author      0mlml
 // @description QOL
 // @run-at      document-start
@@ -403,7 +403,7 @@
 					if ((isWhite && toMove === 'w' || !isWhite && toMove === 'b')) continue;
 
 					for (const threat of tile.threatenedBy) {
-						markings.push({ type: 'arrow', data: { from: xyToCoord(threat[0], threat[1]), to: xyToCoord(i, j) } });
+						markings.push({ type: 'arrow', data: { color: '#ff7777', from: xyToCoord(threat[0], threat[1]), to: xyToCoord(i, j) } });
 					}
 				} else if (!didWarnCalcHangingOverride) {
 					addToConsole('calcBestMove will override the arrows from renderHanging');
@@ -446,7 +446,7 @@
 
 		if (!config.renderHanging.value) board.game.markings.removeAll();
 
-		board.game.markings.addOne({ type: 'arrow', data: { from: xyToCoordInverted(from[0], from[1]), to: xyToCoordInverted(to[0], to[1]) } });
+		board.game.markings.addOne({ type: 'arrow', data: { color: '#77ff77', from: xyToCoordInverted(from[0], from[1]), to: xyToCoordInverted(to[0], to[1]) } });
 	}
 
 	const lichessRenderBestMove = (from, to) => {
@@ -456,8 +456,13 @@
 	const updateLoop = () => {
 		let fen;
 		if (document.location.hostname === 'www.chess.com') {
-			let board = document.getElementsByTagName('chess-board')[0];
+			const board = document.getElementsByTagName('chess-board')[0];
 			if (board?.game?.getFEN) fen = board.game.getFEN();
+		} else if (document.location.hostname === 'lichess.org') {
+			// this does not work, only grabs it one time
+
+			// const fensHtml = document.documentElement.innerHTML.split("fen");
+			// fen = fensHtml[fensHtml.length - 1].split('"}]')[0].substring(3).split('"')[0];
 		}
 
 		if (!fen) return;
