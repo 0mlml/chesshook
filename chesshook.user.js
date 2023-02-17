@@ -1,10 +1,9 @@
 // ==UserScript==
 // @name        Chesshook
 // @include    	https://www.chess.com/*
-// @include		https://lichess.org/*
 // @grant       none
 // @require		https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     0.4
+// @version     0.5
 // @author      0mlml
 // @description QOL
 // @run-at      document-start
@@ -144,7 +143,7 @@
 	}
 
 	const makeConsole = () => {
-		let css = `div#chesshook_windowmain{overflow:auto;resize:both;position:fixed;min-height:30vh;min-width:30vw;aspect-ratio:1.7;background:#000;display:none;flex-direction:column;align-items:center;z-index:10000990;box-shadow:0 0 10px #000;border-radius:2px;border:2px solid #222;color:#ccc;font-family:monospace}div#chesshook_windowmain button{background-color:#000;margin:0 0 0 .5vw;}span#chesshook_windowmain_headerbar{top:0;left:0;margin:0;width:100%;height:3vh;background:#828282;display:flex;flex-direction:column;cursor:move}span#chesshook_windowmain_topdecoline{width:100%;height:10%;margin:0;padding:0;background:linear-gradient(to right,red,orange,#ff0,green,#00f,indigo,violet)}div#chesshook_windowmain_tabs{width:100%;height:90%;margin:0;padding:0;background-color:#000;border-bottom:2px solid #222;display:flex;flex-direction:row;cursor:move}div#chesshook_windowmain_tabs_title{margin:0;padding:0;display:flex;align-items:center;align-content:center;user-select:none;flex-grow:1000}div#chesshook_windowmain_tabs_x{height:calc(100%-3px);background:#222;aspect-ratio:1;margin:0;padding:0;display:flex;align-items:center;align-content:center;justify-content:center;cursor:pointer;border:2px solid #222;border-radius:5px}div#chesshook_windowmain_menutoggle{display:block;-webkit-user-select:none;user-select:none;height:calc(100%-3px);aspect-ratio:1;margin:0;padding:3px}div#chesshook_windowmain_menutoggle input{display:block;width:40px;height:32px;position:absolute;top:-7px;left:-5px;cursor:pointer;opacity:0;z-index:10000994;-webkit-touch-callout:none}ul#chesshook_windowmain_menutoggle_menu{margin:0;list-style-type:none;-webkit-font-smoothing:antialiased;opacity:0;transition:opacity .5s cubic-bezier(.77, .2, .05, 1);width:7vw;background-color:#000;position:absolute;top:3vh;left:0;border:2px solid #222;border-radius:5px;padding:0;flex-direction:column;align-items:stretch;z-index:10000991}ul#chesshook_windowmain_menutoggle_menu>li{height:3.5vh;background-color:#000;border-bottom:2px solid #222;text-align:center;line-height:3.5vh;font-size:1.75vh;color:#fff;font-family:monospace;user-select:none;cursor:pointer;text-decoration:none}div#chesshook_windowmain_menutoggle span{display:block;width:24px;height:3px;margin-bottom:3px;position:relative;background:#cdcdcd;border-radius:3px;z-index:10000992;transform-origin:4px 0px;transition:transform .5s cubic-bezier(.77, .2, .05, 1),background .5s cubic-bezier(.77, .2, .05, 1),opacity .55s}div#chesshook_windowmain_menutoggle span:first-child{transform-origin:0% 0%}div#chesshook_windowmain_menutoggle span:nth-last-child(2){transform-origin:0% 100%}div#chesshook_windowmain_menutoggle input:checked~span{opacity:1;transform:rotate(45deg) translate(-2px,-1px)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(3){opacity:0;transform:rotate(0) scale(.2,.2)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(2){transform:rotate(-45deg) translate(0,-1px)}div#chesshook_windowmain_menutoggle input:checked~ul{opacity:1}div#chesshook_windowmain_viewportcontainer{width:100%;height:90%;position:absolute;margin:0;padding:0;top:10%;left:0}div#chesshook_consolevp{width:100%;height:100%;overflow-y:scroll;flex-direction:column}div#chesshook_settingsvp{width:100%;height:100%;overflow-y:scroll;display:none;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:center}div#chesshook_settingsvp_left{padding:13px;display:flex;flex-direction:column;align-items:left;align-content:stretch;justify-content:center}div#chesshook_settingsvp_right{padding:12px;display:flex;flex-direction:column;align-items:center;align-content:stretch;justify-content:center}`;
+		let css = `div#chesshook_windowmain{overflow:auto;resize:both;position:fixed;min-height:30vh;min-width:30vw;aspect-ratio:1.7;background:#000;display:none;flex-direction:column;align-items:center;z-index:10000990;box-shadow:0 0 10px #000;border-radius:2px;border:2px solid #222;color:#ccc;font-family:monospace}div#chesshook_windowmain button{background-color:#000;color:#ccc;margin:0 0 0 .5vw}span#chesshook_windowmain_headerbar{top:0;left:0;margin:0;width:100%;height:3vh;background:#828282;display:flex;flex-direction:column;cursor:move}span#chesshook_windowmain_topdecoline{width:100%;height:10%;margin:0;padding:0;background:linear-gradient(to right,red,orange,#ff0,green,#00f,indigo,violet)}div#chesshook_windowmain_tabs{width:100%;height:90%;margin:0;padding:0;background-color:#000;border-bottom:2px solid #222;display:flex;flex-direction:row;cursor:move}div#chesshook_windowmain_tabs_title{margin:0;padding:0;display:flex;align-items:center;align-content:center;user-select:none;flex-grow:1000}div#chesshook_windowmain_tabs_x{height:calc(100%-3px);background:#222;aspect-ratio:1;margin:0;padding:0;display:flex;align-items:center;align-content:center;justify-content:center;cursor:pointer;border:2px solid #222;border-radius:5px}div#chesshook_windowmain_menutoggle{display:block;-webkit-user-select:none;user-select:none;height:calc(100%-3px);aspect-ratio:1;margin:0;padding:3px}div#chesshook_windowmain_menutoggle input{display:block;width:40px;height:32px;position:absolute;top:-7px;left:-5px;cursor:pointer;opacity:0;z-index:10000994;-webkit-touch-callout:none}ul#chesshook_windowmain_menutoggle_menu{margin:0;list-style-type:none;-webkit-font-smoothing:antialiased;opacity:0;transition:opacity .5s cubic-bezier(.77, .2, .05, 1);width:7vw;background-color:#000;position:absolute;top:3vh;left:0;border:2px solid #222;border-radius:5px;padding:0;flex-direction:column;align-items:stretch;z-index:10000991;visibility:hidden}ul#chesshook_windowmain_menutoggle_menu>li{height:3.5vh;background-color:#000;border-bottom:2px solid #222;text-align:center;line-height:3.5vh;font-size:1.75vh;color:#fff;font-family:monospace;user-select:none;cursor:pointer;text-decoration:none}div#chesshook_windowmain_menutoggle span{display:block;width:24px;height:3px;margin-bottom:3px;position:relative;background:#cdcdcd;border-radius:3px;z-index:10000992;transform-origin:4px 0px;transition:transform .5s cubic-bezier(.77, .2, .05, 1),background .5s cubic-bezier(.77, .2, .05, 1),opacity .55s}div#chesshook_windowmain_menutoggle span:first-child{transform-origin:0% 0%}div#chesshook_windowmain_menutoggle span:nth-last-child(2){transform-origin:0% 100%}div#chesshook_windowmain_menutoggle input:checked~span{opacity:1;transform:rotate(45deg) translate(-2px,-1px)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(3){opacity:0;transform:rotate(0) scale(.2,.2)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(2){transform:rotate(-45deg) translate(0,-1px)}div#chesshook_windowmain_menutoggle input:checked~ul{opacity:1;visibility:visible}div#chesshook_windowmain_viewportcontainer{width:100%;height:90%;position:absolute;margin:0;padding:0;top:10%;left:0}div#chesshook_consolevp{width:100%;height:100%;overflow-y:scroll;flex-direction:column}div#chesshook_settingsvp{width:100%;height:100%;overflow-y:scroll;display:none;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:center}div#chesshook_settingsvp_left{padding:13px;display:flex;flex-direction:column;align-items:left;align-content:stretch;justify-content:center}div#chesshook_settingsvp_right{padding:12px;display:flex;flex-direction:column;align-items:center;align-content:stretch;justify-content:center}`;
 		const styleSheetNode = document.createElement('style');
 
 		if (styleSheetNode.styleSheet) styleSheetNode.styleSheet.cssText = css;
@@ -223,6 +222,44 @@
 		consoleViewportDiv.id = namespace + '_consolevp';
 		viewportContainerDiv.appendChild(consoleViewportDiv);
 
+		const exploitsViewportDiv = document.createElement('div');
+		exploitsViewportDiv.id = namespace + '_exploitsvp';
+		viewportContainerDiv.appendChild(exploitsViewportDiv);
+
+		const forceScholarsMateButton = document.createElement('button');
+		forceScholarsMateButton.id = namespace + '_exploitsvp_forcescholarsmate';
+		forceScholarsMateButton.innerText = 'Force Bot Scholars Mate';
+		forceScholarsMateButton.addEventListener('click', e => {
+			e.preventDefault();
+			if (document.location.hostname !== 'www.chess.com') return alert('You must be on chess.com to use this feature.');
+			if (document.location.pathname !== '/play/computer') return alert('You must be on the computer play page to use this feature.');
+			const board = document.getElementsByTagName('chess-board')[0];
+			if (!board?.game?.move || !board?.game?.getFEN) return alert('You must be in a game to use this feature.');
+			if (parseInt(board.game.getFEN().split(' ')[5]) > 1 || board.game.getFEN().split(' ')[1] !== 'w') return alert('It must be turn 1 and white to move to use this feature.');
+			board.game.move('e4');
+			board.game.move('e5');
+			board.game.move('Qf3');
+			board.game.move('d6');
+			board.game.move('Bc4');
+			board.game.move('g6');
+			board.game.move('Qxf7#');
+		});
+		exploitsViewportDiv.appendChild(forceScholarsMateButton);
+
+		const forceDrawButton = document.createElement('button');
+		forceDrawButton.id = namespace + '_exploitsvp_forcedraw';
+		forceDrawButton.innerText = 'Force Draw Against Bot';
+		forceDrawButton.addEventListener('click', e => {
+			e.preventDefault();
+			if (document.location.hostname !== 'www.chess.com') return alert('You must be on chess.com to use this feature.');
+			// if (document.location.pathname !== '/play/computer') return alert('You must be on the computer play page to use this feature.');
+			const board = document.getElementsByTagName('chess-board')[0];
+			if (!board?.game?.move) return alert('You must be in a game to use this feature.');
+			board.game.agreeDraw();
+		});
+		exploitsViewportDiv.appendChild(forceDrawButton);
+
+
 		const settingsViewportDiv = document.createElement('div');
 		settingsViewportDiv.id = namespace + '_settingsvp';
 		viewportContainerDiv.appendChild(settingsViewportDiv);
@@ -283,6 +320,13 @@
 				el.style.display = 'none';
 			});
 			settingsViewportDiv.style.display = 'flex';
+		});
+
+		navMenuUnorderedList.addButton('Exploits').addEventListener('click', e => {
+			viewportContainerDiv.childNodes.forEach(el => {
+				el.style.display = 'none';
+			});
+			exploitsViewportDiv.style.display = 'flex';
 		});
 
 		document.body.appendChild(mainDiv);
