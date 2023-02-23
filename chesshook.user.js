@@ -3,7 +3,7 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require		https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     0.6
+// @version     0.7
 // @author      0mlml
 // @description QOL
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -13,7 +13,7 @@
 
 (() => {
 	const configChangeCallback = (input) => {
-		let configKey = input.target ? Object.keys(config).find(k => namespace + config[k].key === input.target.id) : input.key;
+		const configKey = input.target ? Object.keys(config).find(k => namespace + config[k].key === input.target.id) : input.key;
 		if (configKey) {
 			switch (config[configKey].type) {
 				case 'checkbox':
@@ -364,6 +364,13 @@
 			value: 'betafish',
 			options: ['none', 'betafish', 'random', 'cccp']
 		},
+		autoMove: {
+			key: namespace + '_automove',
+			type: 'checkbox',
+			display: 'Auto Move',
+			helptext: 'Automatically move the engine move',
+			value: true
+		},
 		renderWindow: {
 			key: namespace + '_renderwindow',
 			type: 'hidden',
@@ -400,13 +407,11 @@
 			}
 		});
 	}
-
 	const betafishWorkerBlob = new Blob([`const betafishEngine=${betafishEngine.toString()};(${betafishWebWorkerFunc.toString()})();`], { type: 'application/javascript' });
 	const betafishWorkerURL = URL.createObjectURL(betafishWorkerBlob);
+	window[namespace].betafishWebWorker = new Worker(betafishWorkerURL);
 
-	window[namespace].betaFishWebWorker = new Worker(betafishWorkerURL);
-
-	window[namespace].betaFishWebWorker.onmessage = e => {
+	window[namespace].betafishWebWorker.onmessage = e => {
 		if (e.data.type === 'DEBUG') {
 			console.log(e.data.payload);
 		} else if (e.data.type === 'ERROR') {
@@ -423,7 +428,7 @@
 			addToConsole(`Betafish computed best for ${e.data.payload.toMove === 'w' ? 'white' : 'black'}: ${xyToCoordInverted(from[0], from[1])}->${xyToCoordInverted(to[0], to[1])}`);
 
 			if (document.location.hostname === 'www.chess.com') {
-				chesscomRenderMove(from, to);
+				chesscomProcessMove(from, to, window[namespace].lastPos);
 			} else if (document.location.hostname === 'lichess.org') {
 				lichessRenderMove(from, to);
 			}
@@ -474,7 +479,6 @@
 
 		let position = parsePositionPieceRelations(fen);
 		if (!position) return false;
-		window[namespace].lastPos = position;
 
 		if (document.location.hostname === 'www.chess.com') {
 			chesscomRenderHanging(fen, position);
@@ -518,6 +522,29 @@
 		// not impl
 	}
 
+	const distanceToEnd = (yCoord, isWhite) => {
+		return isWhite ? 7 - yCoord : yCoord;
+	}
+
+	// Engine that tries to checkmate, or check, or capture, then push in that order
+	const cccpEngine = (fen) => {
+		const position = parsePositionPieceRelations(fen);
+		const isWhite = fen.split(' ')[1] === 'w';
+
+		const checkMateMoves = getCheckmateMoves(fen);
+		if (checkMateMoves.length > 0) return checkMateMoves[0];
+
+		const legalMoves = getAllLegalMoves(fen);
+
+		const checkMoves = legalMoves.filter(move => isKingInCheckAfterMove(position, move[0], move[1], move[2], move[3], isWhite));
+		if (checkMoves.length > 0) return checkMoves[0];
+
+		const captureMoves = legalMoves.filter(move => position[move[2]][move[3]]).sort((a, b) => getPieceValue(position[b[2]][b[3]].piece) - getPieceValue(position[a[2]][a[3]].piece));
+		if (captureMoves.length > 0) return captureMoves[0];
+
+		const pushMoves = legalMoves.sort((a, b) => distanceToEnd(b[3], isWhite) - distanceToEnd(a[3], isWhite));
+		if (pushMoves.length > 0) return pushMoves[0];
+	}
 
 	const calcEngineMove = (fen) => {
 		const toMove = fen.split(' ')[1];
@@ -528,8 +555,8 @@
 		let from, to;
 
 		if (config.whichEngine.value === 'betafish') {
-			window[namespace].betaFishWebWorker.postMessage({ type: 'FEN', payload: fen });
-			window[namespace].betaFishWebWorker.postMessage({ type: 'GETMOVE' });
+			window[namespace].betafishWebWorker.postMessage({ type: 'FEN', payload: fen });
+			window[namespace].betafishWebWorker.postMessage({ type: 'GETMOVE' });
 			return true;
 		} else if (config.whichEngine.value === 'random') {
 			const legalMoves = getAllLegalMoves(fen);
@@ -537,27 +564,53 @@
 			from = [randomMove[0], randomMove[1]];
 			to = [randomMove[2], randomMove[3]];
 
+			from[0] = 7 - from[0];
+			to[0] = 7 - to[0];
+
 			addToConsole(`Random computed move for ${toMove === 'w' ? 'white' : 'black'}: ${xyToCoordInverted(from[0], from[1])}->${xyToCoordInverted(to[0], to[1])}`);
 		} else if (config.whichEngine.value === 'cccp') {
+			const move = cccpEngine(fen);
+			if (!move) return false;
+			from = [move[0], move[1]];
+			to = [move[2], move[3]];
 
+			from[0] = 7 - from[0];
+			to[0] = 7 - to[0];
+
+			addToConsole(`CCCP computed move for ${toMove === 'w' ? 'white' : 'black'}: ${xyToCoordInverted(from[0], from[1])}->${xyToCoordInverted(to[0], to[1])}`);
 		}
 
 		if (!from || !to) return false;
 
 		if (document.location.hostname === 'www.chess.com') {
-			chesscomRenderMove(from, to);
+			chesscomProcessMove(from, to, window[namespace].lastPos);
 		} else if (document.location.hostname === 'lichess.org') {
 			lichessRenderMove(from, to);
 		}
 	}
 
-	const chesscomRenderMove = (from, to) => {
+	const chesscomProcessMove = (from, to, position) => {
 		let board = document.getElementsByTagName('chess-board')[0];
 		if (!board?.game?.markings?.addOne || !board?.game?.markings?.removeAll) return false;
 
 		if (!config.renderHanging.value) board.game.markings.removeAll();
 
 		board.game.markings.addOne({ type: 'arrow', data: { color: '#77ff77', from: xyToCoordInverted(from[0], from[1]), to: xyToCoordInverted(to[0], to[1]) } });
+
+		if (config.autoMove.value && position) {
+			if (document.location.pathname !== '/play/computer') {
+				configChangeCallback({ key: 'autoMove', value: false });
+				alert('You must be on the computer play page to use this feature.');
+				return;
+			}
+
+			const piece = position[7 - from[0]][from[1]]?.piece.toUpperCase();
+			if (!piece) return;
+
+			board.game.move(piece + xyToCoordInverted(to[0], to[1]));
+
+			addToConsole(piece + xyToCoordInverted(to[0], to[1]))
+		}
 	}
 
 	const lichessRenderMove = (from, to) => {
@@ -577,6 +630,9 @@
 		}
 
 		if (!fen) return;
+
+		window[namespace].lastPos = parsePositionPieceRelations(fen);
+
 
 		if (config.renderHanging.value && fen !== window[namespace].lastFEN) {
 			renderHanging(fen);
@@ -810,14 +866,64 @@
 		return moves;
 	}
 
-	function getAllLegalMoves(fen) {
+	const getCheckmateMoves = (fen) => {
+		const legalMoves = getAllLegalMoves(fen);
 		const position = parsePositionPieceRelations(fen);
+		const checkmateMoves = [];
+		const isWhite = fen.split(' ')[1] === 'w';
+
+		for (let i = 0; i < legalMoves.length; i++) {
+			const [startX, startY, endX, endY] = legalMoves[i];
+			const tempPiece = position[endX][endY];
+			position[endX][endY] = position[startX][startY];
+			position[startX][startY] = null;
+			const isCheckmate = isKingInCheckmate(position, !isWhite, 0);
+			position[startX][startY] = position[endX][endY];
+			position[endX][endY] = tempPiece;
+
+			if (isCheckmate) {
+				checkmateMoves.push(legalMoves[i]);
+			}
+
+		}
+
+		return checkmateMoves;
+	}
+
+	const isKingInCheckmate = (position, isWhite, depth) => {
+		if (depth >= 3) return false; // Max depth reached, consider it a draw
+		const kingPosition = findKing(position, isWhite);
+		const kingMoves = getAllMovesForPiece(position, kingPosition[0], kingPosition[1], isWhite);
+		const isInCheck = isKingInCheck(position, kingPosition[0], kingPosition[1], isWhite);
+
+		if (!isInCheck) return false; // Not in check, can't be checkmate
+		if (kingMoves.length > 0) return false; // King can move out of check, not checkmate
+
+		const allMoves = getAllLegalMovesFromPosition(position, isWhite);
+		for (let i = 0; i < allMoves.length; i++) {
+			const [startX, startY, endX, endY] = allMoves[i];
+			const tempPiece = position[endX][endY];
+			position[endX][endY] = position[startX][startY];
+			position[startX][startY] = null;
+			const isCheckmate = isKingInCheckmate(position, !isWhite, depth + 1);
+			position[startX][startY] = position[endX][endY];
+			position[endX][endY] = tempPiece;
+
+			if (!isCheckmate) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	const getAllLegalMovesFromPosition = (position, isWhite) => {
 		const legalMoves = [];
 
 		for (let i = 0; i < position.length; i++) {
 			for (let j = 0; j < position[i].length; j++) {
 				const piece = position[i][j];
-				if (piece && piece.piece) {
+				if (piece && piece.piece.toUpperCase() === (isWhite ? 'K' : 'k')) {
 					const moves = getAllMovesForPiece(position, i, j, piece.piece.toUpperCase() === piece.piece);
 					moves.forEach(move => {
 						const [x, y] = move;
@@ -832,7 +938,31 @@
 		return legalMoves;
 	}
 
-	function isValidMove(position, startX, startY, endX, endY, isWhite) {
+	const getAllLegalMoves = (fen) => {
+		const position = parsePositionPieceRelations(fen);
+		const toMove = fen.split(' ')[1];
+		const legalMoves = [];
+
+		for (let i = 0; i < position.length; i++) {
+			for (let j = 0; j < position[i].length; j++) {
+				const piece = position[i][j];
+				if (piece && piece.piece) {
+					if (!(piece.piece.toUpperCase() === piece.piece === (toMove === 'w'))) continue;
+					const moves = getAllMovesForPiece(position, i, j, piece.piece.toUpperCase() === piece.piece);
+					moves.forEach(move => {
+						const [x, y] = move;
+						if (isValidMove(position, i, j, x, y, piece.piece.toUpperCase() === piece.piece)) {
+							legalMoves.push([i, j, x, y]);
+						}
+					});
+				}
+			}
+		}
+
+		return legalMoves;
+	}
+
+	const isValidMove = (position, startX, startY, endX, endY, isWhite) => {
 		if (startX === endX && startY === endY) return false; // Can't move to the same position
 		const piece = position[startX][startY];
 		const targetPiece = position[endX][endY];
@@ -844,7 +974,7 @@
 		return true;
 	}
 
-	function isKingInCheckAfterMove(position, startX, startY, endX, endY, isWhite) {
+	const isKingInCheckAfterMove = (position, startX, startY, endX, endY, isWhite) => {
 		const tempPiece = position[endX][endY];
 		position[endX][endY] = position[startX][startY];
 		position[startX][startY] = null;
@@ -855,7 +985,7 @@
 		return result;
 	}
 
-	function findKing(position, isWhite) {
+	const findKing = (position, isWhite) => {
 		for (let i = 0; i < position.length; i++) {
 			for (let j = 0; j < position[i].length; j++) {
 				const piece = position[i][j];
@@ -866,7 +996,7 @@
 		}
 	}
 
-	function isKingInCheck(position, x, y, isWhite) {
+	const isKingInCheck = (position, x, y, isWhite) => {
 		for (let i = 0; i < position.length; i++) {
 			for (let j = 0; j < position[i].length; j++) {
 				const piece = position[i][j];
