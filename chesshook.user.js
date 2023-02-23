@@ -3,9 +3,11 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require		https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     0.5
+// @version     0.6
 // @author      0mlml
 // @description QOL
+// @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
+// @downloadURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
 // @run-at      document-start
 // ==/UserScript==
 
@@ -32,7 +34,7 @@
 			window.localStorage.setItem(config[configKey].key, config[configKey].value);
 		}
 
-		if (config.renderWindow.value) document.getElementById(namespace + '_windowmain').style.display = 'flex';
+		if (config.renderWindow.value === 'true') document.getElementById(namespace + '_windowmain').style.display = 'flex';
 		else document.getElementById(namespace + '_windowmain').style.display = 'none';
 
 		if (!config.renderHanging.value) {
@@ -65,22 +67,10 @@
 
 	const toggleMainDisplay = () => {
 		const main = document.getElementById(namespace + '_windowmain');
-		if (main) {
-			if (main.style.display === 'flex') main.style.display = 'none';
-			else main.style.display = 'flex';
-			configChangeCallback({ key: 'renderWindow', value: main.style.display === 'flex' });
-		}
-	}
-
-	const mdToDOM = (string) => {
-		string = string.replace(/\*{2}(.*?)\*{2}/g, '<strong>$1</strong>');
-		string = string.replace(/\*(.*?)\*/g, '<em>$1</em>');
-		string = string.replace(/\n/g, '<br>');
-		for (const m of string.matchAll(/!\[(.+?)\]\((.+?)\)/g)) {
-			if (!config.doImages.value) string = string.replace(m[0], `<img alt="${m[1]}" src=""`);
-			else string = string.replace(m[0], `<img alt="${m[1]}" src="${document.querySelectorAll(`[alt="${m[1]}"]`).src}"`);
-		}
-		return string;
+		if (!main) return;
+		if (main.style.display === 'flex') main.style.display = 'none';
+		else main.style.display = 'flex';
+		configChangeCallback({ key: 'renderWindow', value: main.style.display === 'flex' ? 'true' : 'false' });
 	}
 
 	const addToConsole = (text) => {
@@ -89,7 +79,7 @@
 
 		const next = document.createElement('div');
 		next.style = 'border-bottom:2px solid #333;padding-left:3px;';
-		next.innerHTML = mdToDOM(text);
+		next.innerHTML = text;
 
 		document.getElementById(namespace + '_consolevp').appendChild(next);
 	}
@@ -142,6 +132,22 @@
 		else elem.addEventListener('mousedown', draggable_mouseDown);
 	}
 
+	const switchToViewport = (viewport) => {
+		const viewportContainerDiv = document.getElementById(namespace + '_windowmain_viewportcontainer');
+		const viewportDiv = document.getElementById(namespace + '_' + viewport)
+
+
+		if (!viewportContainerDiv || !viewportDiv) return;
+
+		viewportContainerDiv.childNodes.forEach(el => {
+			el.style.display = 'none';
+		});
+
+		viewportDiv.style.display = 'flex';
+
+		configChangeCallback({ key: 'lastViewport', value: viewport });
+	}
+
 	const makeConsole = () => {
 		let css = `div#chesshook_windowmain{overflow:auto;resize:both;position:fixed;min-height:30vh;min-width:30vw;aspect-ratio:1.7;background:#000;display:none;flex-direction:column;align-items:center;z-index:10000990;box-shadow:0 0 10px #000;border-radius:2px;border:2px solid #222;color:#ccc;font-family:monospace}div#chesshook_windowmain button{background-color:#000;color:#ccc;margin:0 0 0 .5vw}span#chesshook_windowmain_headerbar{top:0;left:0;margin:0;width:100%;height:3vh;background:#828282;display:flex;flex-direction:column;cursor:move}span#chesshook_windowmain_topdecoline{width:100%;height:10%;margin:0;padding:0;background:linear-gradient(to right,red,orange,#ff0,green,#00f,indigo,violet)}div#chesshook_windowmain_tabs{width:100%;height:90%;margin:0;padding:0;background-color:#000;border-bottom:2px solid #222;display:flex;flex-direction:row;cursor:move}div#chesshook_windowmain_tabs_title{margin:0;padding:0;display:flex;align-items:center;align-content:center;user-select:none;flex-grow:1000}div#chesshook_windowmain_tabs_x{height:calc(100%-3px);background:#222;aspect-ratio:1;margin:0;padding:0;display:flex;align-items:center;align-content:center;justify-content:center;cursor:pointer;border:2px solid #222;border-radius:5px}div#chesshook_windowmain_menutoggle{display:block;-webkit-user-select:none;user-select:none;height:calc(100%-3px);aspect-ratio:1;margin:0;padding:3px}div#chesshook_windowmain_menutoggle input{display:block;width:40px;height:32px;position:absolute;top:-7px;left:-5px;cursor:pointer;opacity:0;z-index:10000994;-webkit-touch-callout:none}ul#chesshook_windowmain_menutoggle_menu{margin:0;list-style-type:none;-webkit-font-smoothing:antialiased;opacity:0;transition:opacity .5s cubic-bezier(.77, .2, .05, 1);width:7vw;background-color:#000;position:absolute;top:3vh;left:0;border:2px solid #222;border-radius:5px;padding:0;flex-direction:column;align-items:stretch;z-index:10000991;visibility:hidden}ul#chesshook_windowmain_menutoggle_menu>li{height:3.5vh;background-color:#000;border-bottom:2px solid #222;text-align:center;line-height:3.5vh;font-size:1.75vh;color:#fff;font-family:monospace;user-select:none;cursor:pointer;text-decoration:none}div#chesshook_windowmain_menutoggle span{display:block;width:24px;height:3px;margin-bottom:3px;position:relative;background:#cdcdcd;border-radius:3px;z-index:10000992;transform-origin:4px 0px;transition:transform .5s cubic-bezier(.77, .2, .05, 1),background .5s cubic-bezier(.77, .2, .05, 1),opacity .55s}div#chesshook_windowmain_menutoggle span:first-child{transform-origin:0% 0%}div#chesshook_windowmain_menutoggle span:nth-last-child(2){transform-origin:0% 100%}div#chesshook_windowmain_menutoggle input:checked~span{opacity:1;transform:rotate(45deg) translate(-2px,-1px)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(3){opacity:0;transform:rotate(0) scale(.2,.2)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(2){transform:rotate(-45deg) translate(0,-1px)}div#chesshook_windowmain_menutoggle input:checked~ul{opacity:1;visibility:visible}div#chesshook_windowmain_viewportcontainer{width:100%;height:90%;position:absolute;margin:0;padding:0;top:10%;left:0}div#chesshook_consolevp{width:100%;height:100%;overflow-y:scroll;flex-direction:column}div#chesshook_settingsvp{width:100%;height:100%;overflow-y:scroll;display:none;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:center}div#chesshook_settingsvp_left{padding:13px;display:flex;flex-direction:column;align-items:left;align-content:stretch;justify-content:center}div#chesshook_settingsvp_right{padding:12px;display:flex;flex-direction:column;align-items:center;align-content:stretch;justify-content:center}`;
 		const styleSheetNode = document.createElement('style');
@@ -154,7 +160,9 @@
 
 		mainDiv.appendChild(styleSheetNode);
 
-		if (config.renderWindow.value) mainDiv.style.display = 'flex';
+		if (config.renderWindow.value === 'true') mainDiv.style.display = 'flex';
+		else mainDiv.style.display = 'none';
+
 		mainDiv.style.left = config.windowPlot.value.split(';')[0];
 		mainDiv.style.top = config.windowPlot.value.split(';')[1];
 		mainDiv.style.width = config.windowPlot.value.split(';')[2];
@@ -252,7 +260,7 @@
 		forceDrawButton.addEventListener('click', e => {
 			e.preventDefault();
 			if (document.location.hostname !== 'www.chess.com') return alert('You must be on chess.com to use this feature.');
-			// if (document.location.pathname !== '/play/computer') return alert('You must be on the computer play page to use this feature.');
+			if (document.location.pathname !== '/play/computer') return alert('You must be on the computer play page to use this feature.');
 			const board = document.getElementsByTagName('chess-board')[0];
 			if (!board?.game?.move) return alert('You must be in a game to use this feature.');
 			board.game.agreeDraw();
@@ -309,27 +317,21 @@
 		}
 
 		navMenuUnorderedList.addButton('Console').addEventListener('click', e => {
-			viewportContainerDiv.childNodes.forEach(el => {
-				el.style.display = 'none';
-			});
-			consoleViewportDiv.style.display = 'flex';
+			switchToViewport('consolevp');
 		});
 
 		navMenuUnorderedList.addButton('Config').addEventListener('click', e => {
-			viewportContainerDiv.childNodes.forEach(el => {
-				el.style.display = 'none';
-			});
-			settingsViewportDiv.style.display = 'flex';
+			switchToViewport('settingsvp');
 		});
 
 		navMenuUnorderedList.addButton('Exploits').addEventListener('click', e => {
-			viewportContainerDiv.childNodes.forEach(el => {
-				el.style.display = 'none';
-			});
-			exploitsViewportDiv.style.display = 'flex';
+			switchToViewport('exploitsvp');
 		});
 
+
 		document.body.appendChild(mainDiv);
+
+		switchToViewport(config.lastViewport.value);
 		makeDraggable(mainDiv, 'windowPlot');
 
 		return mainDiv;
@@ -346,13 +348,6 @@
 			helptext: 'Render hanging pieces',
 			value: true
 		},
-		calcBestMove: {
-			key: namespace + '_calculatebestmove',
-			type: 'checkbox',
-			display: 'Calculate Best Move',
-			helptext: 'Print and render best move',
-			value: true
-		},
 		playingAs: {
 			key: namespace + '_playingas',
 			type: 'dropdown',
@@ -360,6 +355,14 @@
 			helptext: 'What color to calculate moves for',
 			value: 'both',
 			options: ['both', 'white', 'black']
+		},
+		whichEngine: {
+			key: namespace + '_whichengine',
+			type: 'dropdown',
+			display: 'Which Engine',
+			helptext: 'Which engine to use',
+			value: 'betafish',
+			options: ['none', 'betafish', 'random', 'cccp']
 		},
 		renderWindow: {
 			key: namespace + '_renderwindow',
@@ -370,15 +373,68 @@
 			key: namespace + '_windowplot',
 			type: 'hidden',
 			value: '30px;60px;50vw;30vh'
+		},
+		lastViewport: {
+			key: namespace + '_lastviewport',
+			type: 'hidden',
+			value: 'consolevp'
 		}
 	}
 
 	window[namespace] = {};
-	window[namespace].engine = new engine();
+
+	const betafishWebWorkerFunc = () => {
+		let betafish = betafishEngine();
+		self.addEventListener('message', e => {
+			if (e.data.type === 'FEN') {
+				if (!betafish) return self.postMessage({ type: 'ERROR', payload: 'Betafish not initialized.' });
+				if (!e.data.payload) return self.postMessage({ type: 'ERROR', payload: 'No FEN provided.' });
+				self.postMessage({ type: 'DEBUG', payload: 'Betafish recieved FEN.' });
+				betafish.setFEN(e.data.payload);
+			} else if (e.data.type === 'GETMOVE') {
+				if (!betafish) return self.postMessage({ type: 'ERROR', payload: 'Betafish not initialized.' });
+				self.postMessage({ type: 'MESSAGE', payload: 'Betafish recieved request for best move. Calculating...' });
+				const move = betafish.getBestMove();
+				self.postMessage({ type: 'DEBUG', payload: 'Betafish has finished calculating.' })
+				self.postMessage({ type: 'MOVE', payload: { move: move, toMove: betafish.getFEN().split(' ')[1] } })
+			}
+		});
+	}
+
+	const betafishWorkerBlob = new Blob([`const betafishEngine=${betafishEngine.toString()};(${betafishWebWorkerFunc.toString()})();`], { type: 'application/javascript' });
+	const betafishWorkerURL = URL.createObjectURL(betafishWorkerBlob);
+
+	window[namespace].betaFishWebWorker = new Worker(betafishWorkerURL);
+
+	window[namespace].betaFishWebWorker.onmessage = e => {
+		if (e.data.type === 'DEBUG') {
+			console.log(e.data.payload);
+		} else if (e.data.type === 'ERROR') {
+			console.error(e.data.payload);
+		} else if (e.data.type === 'MESSAGE') {
+			addToConsole(e.data.payload);
+		} else if (e.data.type === 'MOVE') {
+			let move = e.data.payload.move;
+			const squareToRankFile = (sq) => [Math.floor((sq - 21) / 10), sq - 21 - Math.floor((sq - 21) / 10) * 10];
+
+			from = squareToRankFile(move & 0x7f);
+			to = squareToRankFile((move >> 7) & 0x7f);
+
+			addToConsole(`Betafish computed best for ${e.data.payload.toMove === 'w' ? 'white' : 'black'}: ${xyToCoordInverted(from[0], from[1])}->${xyToCoordInverted(to[0], to[1])}`);
+
+			if (document.location.hostname === 'www.chess.com') {
+				chesscomRenderMove(from, to);
+			} else if (document.location.hostname === 'lichess.org') {
+				lichessRenderMove(from, to);
+			}
+		}
+	}
 
 	const init = () => {
 		makeConsole();
 		addToConsole(`Loaded! This is version ${GM_info.script.version}`);
+		addToConsole(`Github: https://github.com/0mlml/chesshook`);
+		if (config.renderWindow.value !== 'true') console.log('Chesshook has initialized in the background. To open the window, use the hotkey alt+k')
 	}
 
 	window[namespace].lastFEN = '';
@@ -442,7 +498,7 @@
 					markings.push({ type: 'highlight', data: { square: xyToCoord(i, j) } });
 				}
 				if (!tile.isThreatened || tile.isProtected) continue;
-				if (!config.calcBestMove.value) {
+				if (!config.whichEngine.value !== 'none') {
 					let isWhite = tile.piece === tile.piece.toUpperCase();
 					if ((isWhite && toMove === 'w' || !isWhite && toMove === 'b')) continue;
 
@@ -463,28 +519,39 @@
 	}
 
 
-	const calcBestMove = (fen) => {
+	const calcEngineMove = (fen) => {
 		const toMove = fen.split(' ')[1];
 		if (config.playingAs.value !== 'both' && (config.playingAs.value === 'white') !== (toMove === 'w')) return false;
 
-		addToConsole('Calculating best move...');
+		addToConsole(`Calculating move based on engine: ${config.whichEngine.value}...`);
 
-		window[namespace].engine.setFEN(fen);
-		let move = window[namespace].engine.getBestMove();
-		const squareToRankFile = (sq) => [Math.floor((sq - 21) / 10), sq - 21 - Math.floor((sq - 21) / 10) * 10];
+		let from, to;
 
-		const from = squareToRankFile(move & 0x7f);
-		const to = squareToRankFile((move >> 7) & 0x7f);
+		if (config.whichEngine.value === 'betafish') {
+			window[namespace].betaFishWebWorker.postMessage({ type: 'FEN', payload: fen });
+			window[namespace].betaFishWebWorker.postMessage({ type: 'GETMOVE' });
+			return true;
+		} else if (config.whichEngine.value === 'random') {
+			const legalMoves = getAllLegalMoves(fen);
+			const randomMove = legalMoves[Math.floor(Math.random() * legalMoves.length)];
+			from = [randomMove[0], randomMove[1]];
+			to = [randomMove[2], randomMove[3]];
 
-		addToConsole(`Computed best for ${toMove === 'w' ? 'white' : 'black'}: ${xyToCoordInverted(from[0], from[1])}->${xyToCoordInverted(to[0], to[1])}`);
+			addToConsole(`Random computed move for ${toMove === 'w' ? 'white' : 'black'}: ${xyToCoordInverted(from[0], from[1])}->${xyToCoordInverted(to[0], to[1])}`);
+		} else if (config.whichEngine.value === 'cccp') {
+
+		}
+
+		if (!from || !to) return false;
+
 		if (document.location.hostname === 'www.chess.com') {
-			chesscomRenderBestMove(from, to);
+			chesscomRenderMove(from, to);
 		} else if (document.location.hostname === 'lichess.org') {
-			lichessRenderBestMove(from, to);
+			lichessRenderMove(from, to);
 		}
 	}
 
-	const chesscomRenderBestMove = (from, to) => {
+	const chesscomRenderMove = (from, to) => {
 		let board = document.getElementsByTagName('chess-board')[0];
 		if (!board?.game?.markings?.addOne || !board?.game?.markings?.removeAll) return false;
 
@@ -493,7 +560,7 @@
 		board.game.markings.addOne({ type: 'arrow', data: { color: '#77ff77', from: xyToCoordInverted(from[0], from[1]), to: xyToCoordInverted(to[0], to[1]) } });
 	}
 
-	const lichessRenderBestMove = (from, to) => {
+	const lichessRenderMove = (from, to) => {
 		// not impl
 	}
 
@@ -515,8 +582,8 @@
 			renderHanging(fen);
 		}
 
-		if (config.calcBestMove.value && fen !== window[namespace].lastFEN) {
-			calcBestMove(fen);
+		if (config.whichEngine.value !== 'none' && fen !== window[namespace].lastFEN) {
+			calcEngineMove(fen);
 		}
 
 		window[namespace].lastFEN = fen;
@@ -524,7 +591,7 @@
 
 	window[namespace].updateLoop = setInterval(updateLoop, 300);
 
-	function getAllMoves(position, x, y, isWhite) {
+	const getAllMovesForPiece = (position, x, y, isWhite) => {
 		let moves = [];
 
 		if (position[x][y].piece.toUpperCase() === 'P') {
@@ -743,6 +810,77 @@
 		return moves;
 	}
 
+	function getAllLegalMoves(fen) {
+		const position = parsePositionPieceRelations(fen);
+		const legalMoves = [];
+
+		for (let i = 0; i < position.length; i++) {
+			for (let j = 0; j < position[i].length; j++) {
+				const piece = position[i][j];
+				if (piece && piece.piece) {
+					const moves = getAllMovesForPiece(position, i, j, piece.piece.toUpperCase() === piece.piece);
+					moves.forEach(move => {
+						const [x, y] = move;
+						if (isValidMove(position, i, j, x, y, piece.piece.toUpperCase() === piece.piece)) {
+							legalMoves.push([i, j, x, y]);
+						}
+					});
+				}
+			}
+		}
+
+		return legalMoves;
+	}
+
+	function isValidMove(position, startX, startY, endX, endY, isWhite) {
+		if (startX === endX && startY === endY) return false; // Can't move to the same position
+		const piece = position[startX][startY];
+		const targetPiece = position[endX][endY];
+
+		if (targetPiece && isWhite === (targetPiece.piece.toUpperCase() === targetPiece.piece)) return false; // Can't capture same color piece
+		if (!getAllMovesForPiece(position, startX, startY, isWhite).some(([x, y]) => x === endX && y === endY)) return false; // Invalid move for piece
+		if (isKingInCheckAfterMove(position, startX, startY, endX, endY, isWhite)) return false; // Can't move king into check
+
+		return true;
+	}
+
+	function isKingInCheckAfterMove(position, startX, startY, endX, endY, isWhite) {
+		const tempPiece = position[endX][endY];
+		position[endX][endY] = position[startX][startY];
+		position[startX][startY] = null;
+		const kingPosition = findKing(position, isWhite);
+		const result = isKingInCheck(position, kingPosition[0], kingPosition[1], !isWhite);
+		position[startX][startY] = position[endX][endY];
+		position[endX][endY] = tempPiece;
+		return result;
+	}
+
+	function findKing(position, isWhite) {
+		for (let i = 0; i < position.length; i++) {
+			for (let j = 0; j < position[i].length; j++) {
+				const piece = position[i][j];
+				if (piece && piece.piece === (isWhite ? 'K' : 'k')) {
+					return [i, j];
+				}
+			}
+		}
+	}
+
+	function isKingInCheck(position, x, y, isWhite) {
+		for (let i = 0; i < position.length; i++) {
+			for (let j = 0; j < position[i].length; j++) {
+				const piece = position[i][j];
+				if (piece && piece.piece.toUpperCase() !== 'K' && isWhite === (piece.piece.toUpperCase() === piece.piece)) {
+					const moves = getAllMovesForPiece(position, i, j, isWhite);
+					if (moves.some(([x2, y2]) => x2 === x && y2 === y)) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
 	const parsePositionPieceRelations = (fen) => {
 		const [boardState, activeColor, castlingAvailability, enPassantTarget, halfMoveClock, fullMoveNumber] = fen.split(' ');
 
@@ -774,7 +912,7 @@
 				const tile = position[i][j];
 				if (tile) {
 					const isWhite = tile.piece.toUpperCase() === tile.piece;
-					const moves = getAllMoves(position, i, j, isWhite);
+					const moves = getAllMovesForPiece(position, i, j, isWhite);
 					for (let move of moves) {
 						const [x, y] = move;
 						const targetTile = position[x][y];
