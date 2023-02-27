@@ -2,7 +2,7 @@
 // @name        Chesshook
 // @include    	https://www.chess.com/*
 // @grant       none
-// @require		https://gist.githubusercontent.com/0mlml/78356add255e104ee952ef5d80b1e385/raw/83f743135412cdb18e5b9156abc1516e861e1ff2/betafish.js
+// @require		https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
 // @version     1.0.0
 // @author      0mlml
 // @description QOL
