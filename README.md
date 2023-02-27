@@ -14,7 +14,7 @@ userscript for chess.com that highlights hanging pieces and attempts to calculat
  - [Checkmate, Check, Capture, Push](http://tom7.org/chess/weak.pdf) inspired by tom7's paper for SIGBOVIK 2019, not very good at chess
 
 ### soon:
- - [ ] lichess.org support, i just need to figure out the highlighting/arrows and grabbing the FEN string
- - [ ] automatically playing the best move, just need to reverse chess.com anti-bot measures
+ - [ ] lichess.org support
+ - [X] automatically playing the best move
  - [X] offloading engine to webworker
- - [ ] full automation of matchmaking (finding games, etc.)
+ - [X] full automation of matchmaking (finding games, etc.)
