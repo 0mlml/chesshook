@@ -3,7 +3,7 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require		https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     0.9
+// @version     1.0.0
 // @author      0mlml
 // @description QOL
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -53,6 +53,9 @@
 
 		// Update the display of the config options.
 		configDisplayUpdater();
+
+		// Apply thinking time
+		window[namespace].betafishWebWorker.postMessage({ type: 'THINKINGTIME', payload: Number(config.betafishThinkingTime.value) });
 
 		// If we are not rendering hanging pieces, and on chess.com, remove all markings.
 		if (!config.renderHanging.value) {
@@ -458,6 +461,13 @@
 			helptext: 'Render hanging pieces',
 			value: true
 		},
+		autoQueue: {
+			key: namespace + '_autoqueue',
+			type: 'checkbox',
+			display: 'Auto Queue',
+			helptext: 'Attempts to automatically queue for games.',
+			value: false,
+		},
 		legitMode: {
 			key: namespace + '_legitmode',
 			type: 'checkbox',
@@ -483,19 +493,30 @@
 			options: ['none', 'betafish', 'random', 'cccp'],
 			showOnlyIf: () => !config.legitMode.value
 		},
+		betafishThinkingTime: {
+			key: namespace + '_betafishthinkingtime',
+			type: 'number',
+			display: 'Betafish Thinking Time',
+			helptext: 'The amount of time in ms to think for each move',
+			value: 1000,
+			min: 0,
+			max: 20000,
+			step: 100,
+			showOnlyIf: () => !config.legitMode.value && config.whichEngine.value === 'betafish'
+		},
 		autoMove: {
 			key: namespace + '_automove',
 			type: 'checkbox',
 			display: 'Auto Move',
-			helptext: 'Potentially bannable. Uses a different method for live and bot games. Bot games are not affected by the delay settings.',
+			helptext: 'Potentially bannable. Tries to randomize move times to avoid detection.',
 			value: true,
 			showOnlyIf: () => !config.legitMode.value
 		},
 		autoMoveMaxRandomDelay: {
 			key: namespace + '_automovemaxrandomdelay',
 			type: 'number',
-			display: 'Auto Move Max Random Delay',
-			helptext: 'Max random delay in ms for automove',
+			display: 'Move time target range max',
+			helptext: 'The maximum delay in ms for automove to target',
 			value: 1000,
 			min: 0,
 			max: 20000,
@@ -505,8 +526,8 @@
 		autoMoveMinRandomDelay: {
 			key: namespace + '_automoveminrandomdelay',
 			type: 'number',
-			display: 'Auto Move Min Random Delay',
-			helptext: 'Min random delay in ms for automove',
+			display: 'Move time target range min',
+			helptext: 'The minimum delay in ms for automove to target',
 			value: 500,
 			min: 0,
 			max: 20000,
@@ -546,12 +567,20 @@
 			} else if (e.data.type === 'GETMOVE') {
 				if (!betafish) return self.postMessage({ type: 'ERROR', payload: 'Betafish not initialized.' });
 				if (working) return self.postMessage({ type: 'ERROR', payload: 'Betafish is already calculating.' });
-				// self.postMessage({ type: 'MESSAGE', payload: 'Betafish recieved request for best move. Calculating...' });
+				self.postMessage({ type: 'MESSAGE', payload: 'Betafish recieved request for best move. Calculating...' });
 				working = true;
 				const move = betafish.getBestMove();
 				working = false;
-				// self.postMessage({ type: 'DEBUG', payload: 'Betafish has finished calculating.' })
+				self.postMessage({ type: 'DEBUG', payload: 'Betafish has finished calculating.' })
 				self.postMessage({ type: 'MOVE', payload: { move: move, toMove: betafish.getFEN().split(' ')[1] } })
+			} else if (e.data.type === 'THINKINGTIME') {
+				if (!betafish) return self.postMessage({ type: 'ERROR', payload: 'Betafish not initialized.' });
+				if (!isNaN(e.data.payload)) {
+					betafish.setThinkingTime(e.data.payload / 1000);
+					self.postMessage({ type: 'DEBUG', payload: 'Betafish thinking time set to ' + e.data.payload + 'ms.' });
+				} else {
+					self.postMessage({ type: 'ERROR', payload: 'Invalid thinking time provided.' });
+				}
 			}
 		});
 	}
@@ -611,7 +640,7 @@
 		createMainWindow();
 		addToConsole(`Loaded! This is version ${GM_info.script.version}`);
 		addToConsole(`Github: https://github.com/0mlml/chesshook`);
-		if (config.renderWindow.value !== 'true') console.log('Chesshook has initialized in the background. To open the window, use the hotkey alt+k')
+		if (config.renderWindow !== 'true') console.log('Chesshook has initialized in the background. To open the window, use the hotkey alt+k')
 	}
 
 	// Last FEN and position. Mostly for debug, but also for automove.
@@ -904,7 +933,7 @@
 		board.game.markings.addOne({ type: 'arrow', data: { color: '#77ff77', from: uciMove.substring(0, 2), to: uciMove.substring(2, 4) } });
 
 		if (config.autoMove.value) {
-			if (document.location.pathname === '/play/computer') {
+			if (document.location.pathname === '/play/computer' && config.playingAs === 'both') {
 				board.game.move(uciMove);
 			} else {
 				const moveFinishTime = performance.now();
@@ -937,7 +966,6 @@
 							clientX: toPos.x,
 							clientY: toPos.y,
 						}));
-						console.log(board.game.cheatDetection.get());
 					}
 				})();
 			}
@@ -948,6 +976,8 @@
 		// not impl
 	}
 
+	let lastGamePath = '';
+
 	/**
 	 * @description The main loop that runs every 100ms.
 	 * @returns {void}
@@ -955,8 +985,18 @@
 	const updateLoop = () => {
 		let fen;
 		if (document.location.hostname === 'www.chess.com') {
+
 			const board = document.getElementsByTagName('chess-board')[0];
 			if (board?.game?.getFEN) fen = board.game.getFEN();
+			if (config.autoQueue.value && board?.game?.getPositionInfo()?.gameOver && lastGamePath !== document.location.pathname) {
+				try {
+					document.querySelector('div.tabs-tab[data-tab=newGame]').click();
+					document.querySelector('button[data-cy=new-game-index-play]').click();
+					lastGamePath = document.location.pathname;
+				} catch {
+					// do nothing
+				}
+			}
 		} else if (document.location.hostname === 'lichess.org') {
 			// Yet to find a way to get the FEN on lichess
 		}
