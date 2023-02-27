@@ -3,11 +3,11 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require		https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     0.8
+// @version     0.9
 // @author      0mlml
 // @description QOL
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
-// @downloadURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
+// @downloadURL https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
 // @run-at      document-start
 // ==/UserScript==
 
@@ -36,6 +36,9 @@
 				if (config[configKey].options.includes(input.target.value))
 					config[configKey].value = input.target.value;
 				break;
+			case 'number':
+				config[configKey].value = Number(input.target.value);
+				break;
 			case 'hidden':
 				config[configKey].value = input.value;
 				break;
@@ -48,6 +51,9 @@
 		if (config.renderWindow.value === 'true') document.getElementById(namespace + '_windowmain').style.display = 'flex';
 		else document.getElementById(namespace + '_windowmain').style.display = 'none';
 
+		// Update the display of the config options.
+		configDisplayUpdater();
+
 		// If we are not rendering hanging pieces, and on chess.com, remove all markings.
 		if (!config.renderHanging.value) {
 			if (document.location.hostname === 'www.chess.com') {
@@ -56,6 +62,21 @@
 					board.game.markings.removeAll();
 				}
 			}
+		}
+	}
+
+	/**
+	 * @description Updates the display of the config options based on the showOnlyIf function.
+	 * @returns {void}
+	 * @todo Utilize css classes instead of inline styles.
+	 */
+	const configDisplayUpdater = () => {
+		for (const k of Object.keys(config)) {
+			const element = document.getElementById(namespace + config[k].key);
+			if (!element || !config[k].showOnlyIf) continue;
+			const parentRow = element.parentElement;
+			if (config[k].showOnlyIf()) parentRow.style.display = 'block';
+			else parentRow.style.display = 'none';
 		}
 	}
 
@@ -78,12 +99,18 @@
 		for (const k of Object.keys(config)) {
 			const stored = window.localStorage.getItem(config[k].key);
 			if (stored)
-				// This ternary must exist because localstorage stores booleans as strings.
-				config[k].value =
-					config[k].type === 'checkbox'
-						? (stored === 'true' ? true : false)
-						: stored;
+				// This switch must exist because localstorage stores booleans and numbers as strings.
+				switch (config[k].type) {
+					case 'checkbox':
+						config[k].value = stored === 'true' ? true : false;
+						break;
+					case 'number':
+						config[k].value = Number(stored);
+						break;
+					default:
+						config[k].value = stored;
 
+				}
 		}
 	}
 
@@ -211,7 +238,7 @@
 	 * @returns {HTMLDivElement} The main window element.
 	 */
 	const createMainWindow = () => {
-		let css = `div#chesshook_windowmain{overflow:auto;resize:both;position:fixed;min-height:30vh;min-width:30vw;aspect-ratio:1.7;background:#000;display:none;flex-direction:column;align-items:center;z-index:10000990;box-shadow:0 0 10px #000;border-radius:2px;border:2px solid #222;color:#ccc;font-family:monospace}div#chesshook_windowmain button{background-color:#000;color:#ccc;margin:0 0 0 .5vw}span#chesshook_windowmain_headerbar{top:0;left:0;margin:0;width:100%;height:3vh;background:#828282;display:flex;flex-direction:column;cursor:move}span#chesshook_windowmain_topdecoline{width:100%;height:10%;margin:0;padding:0;background:linear-gradient(to right,red,orange,#ff0,green,#00f,indigo,violet)}div#chesshook_windowmain_tabs{width:100%;height:90%;margin:0;padding:0;background-color:#000;border-bottom:2px solid #222;display:flex;flex-direction:row;cursor:move}div#chesshook_windowmain_tabs_title{margin:0;padding:0;display:flex;align-items:center;align-content:center;user-select:none;flex-grow:1000}div#chesshook_windowmain_tabs_x{height:calc(100%-3px);background:#222;aspect-ratio:1;margin:0;padding:0;display:flex;align-items:center;align-content:center;justify-content:center;cursor:pointer;border:2px solid #222;border-radius:5px}div#chesshook_windowmain_menutoggle{display:block;-webkit-user-select:none;user-select:none;height:calc(100%-3px);aspect-ratio:1;margin:0;padding:3px}div#chesshook_windowmain_menutoggle input{display:block;width:40px;height:32px;position:absolute;top:-7px;left:-5px;cursor:pointer;opacity:0;z-index:10000994;-webkit-touch-callout:none}ul#chesshook_windowmain_menutoggle_menu{margin:0;list-style-type:none;-webkit-font-smoothing:antialiased;opacity:0;transition:opacity .5s cubic-bezier(.77, .2, .05, 1);width:7vw;background-color:#000;position:absolute;top:3vh;left:0;border:2px solid #222;border-radius:5px;padding:0;flex-direction:column;align-items:stretch;z-index:10000991;visibility:hidden}ul#chesshook_windowmain_menutoggle_menu>li{height:3.5vh;background-color:#000;border-bottom:2px solid #222;text-align:center;line-height:3.5vh;font-size:1.75vh;color:#fff;font-family:monospace;user-select:none;cursor:pointer;text-decoration:none}div#chesshook_windowmain_menutoggle span{display:block;width:24px;height:3px;margin-bottom:3px;position:relative;background:#cdcdcd;border-radius:3px;z-index:10000992;transform-origin:4px 0px;transition:transform .5s cubic-bezier(.77, .2, .05, 1),background .5s cubic-bezier(.77, .2, .05, 1),opacity .55s}div#chesshook_windowmain_menutoggle span:first-child{transform-origin:0% 0%}div#chesshook_windowmain_menutoggle span:nth-last-child(2){transform-origin:0% 100%}div#chesshook_windowmain_menutoggle input:checked~span{opacity:1;transform:rotate(45deg) translate(-2px,-1px)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(3){opacity:0;transform:rotate(0) scale(.2,.2)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(2){transform:rotate(-45deg) translate(0,-1px)}div#chesshook_windowmain_menutoggle input:checked~ul{opacity:1;visibility:visible}div#chesshook_windowmain_viewportcontainer{width:100%;height:90%;position:absolute;margin:0;padding:0;top:10%;left:0}div#chesshook_consolevp{width:100%;height:100%;overflow-y:scroll;flex-direction:column}div#chesshook_settingsvp{width:100%;height:100%;overflow-y:scroll;display:none;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:center}div#chesshook_settingsvp_left{padding:13px;display:flex;flex-direction:column;align-items:left;align-content:stretch;justify-content:center}div#chesshook_settingsvp_right{padding:12px;display:flex;flex-direction:column;align-items:center;align-content:stretch;justify-content:center}`;
+		let css = `div#chesshook_windowmain{overflow:auto;resize:both;position:fixed;min-height:30vh;min-width:30vw;aspect-ratio:1.7;background:#000;display:none;flex-direction:column;align-items:center;z-index:10000990;box-shadow:0 0 10px #000;border-radius:2px;border:2px solid #222;color:#ccc;font-family:monospace}div#chesshook_windowmain button{background-color:#000;color:#ccc;margin:0 0 0 .5vw}span#chesshook_windowmain_headerbar{top:0;left:0;margin:0;width:100%;height:3vh;background:#828282;display:flex;flex-direction:column;cursor:move}span#chesshook_windowmain_topdecoline{width:100%;height:10%;margin:0;padding:0;background:linear-gradient(to right,red,orange,#ff0,green,#00f,indigo,violet)}div#chesshook_windowmain_tabs{width:100%;height:90%;margin:0;padding:0;background-color:#000;border-bottom:2px solid #222;display:flex;flex-direction:row;cursor:move}div#chesshook_windowmain_tabs_title{margin:0;padding:0;display:flex;align-items:center;align-content:center;user-select:none;flex-grow:1000}div#chesshook_windowmain_tabs_x{height:calc(100%-3px);background:#222;aspect-ratio:1;margin:0;padding:0;display:flex;align-items:center;align-content:center;justify-content:center;cursor:pointer;border:2px solid #222;border-radius:5px}div#chesshook_windowmain_menutoggle{display:block;-webkit-user-select:none;user-select:none;height:calc(100%-3px);aspect-ratio:1;margin:0;padding:3px}div#chesshook_windowmain_menutoggle input{display:block;width:40px;height:32px;position:absolute;top:-7px;left:-5px;cursor:pointer;opacity:0;z-index:10000994;-webkit-touch-callout:none}ul#chesshook_windowmain_menutoggle_menu{margin:0;list-style-type:none;-webkit-font-smoothing:antialiased;opacity:0;transition:opacity .5s cubic-bezier(.77, .2, .05, 1);width:7vw;background-color:#000;position:absolute;top:3vh;left:0;border:2px solid #222;border-radius:5px;padding:0;flex-direction:column;align-items:stretch;z-index:10000991;visibility:hidden}ul#chesshook_windowmain_menutoggle_menu>li{height:3.5vh;background-color:#000;border-bottom:2px solid #222;text-align:center;line-height:3.5vh;font-size:1.75vh;color:#fff;font-family:monospace;user-select:none;cursor:pointer;text-decoration:none}div#chesshook_windowmain_menutoggle span{display:block;width:24px;height:3px;margin-bottom:3px;position:relative;background:#cdcdcd;border-radius:3px;z-index:10000992;transform-origin:4px 0px;transition:transform .5s cubic-bezier(.77, .2, .05, 1),background .5s cubic-bezier(.77, .2, .05, 1),opacity .55s}div#chesshook_windowmain_menutoggle span:first-child{transform-origin:0% 0%}div#chesshook_windowmain_menutoggle span:nth-last-child(2){transform-origin:0% 100%}div#chesshook_windowmain_menutoggle input:checked~span{opacity:1;transform:rotate(45deg) translate(-2px,-1px)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(3){opacity:0;transform:rotate(0) scale(.2,.2)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(2){transform:rotate(-45deg) translate(0,-1px)}div#chesshook_windowmain_menutoggle input:checked~ul{opacity:1;visibility:visible}div#chesshook_windowmain_viewportcontainer{width:100%;height:90%;position:absolute;margin:0;padding:0;top:10%;left:0}div#chesshook_consolevp{width:100%;height:100%;overflow-y:scroll;flex-direction:column}div#chesshook_settingsvp{width:100%;height:100%;overflow-y:scroll;display:none;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:center}table#chesshook_settingsvp_table{width:100%;height:100%;display:flex;flex-direction:column;align-items:stretch;align-content:stretch}table#chesshook_settingsvp_table>tr{display:flex;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:flex-start;border-bottom:2px solid #222}table#chesshook_settingsvp_table>tr>label{padding-right:5px}`;
 		const styleSheetNode = document.createElement('style');
 
 		// Compatibility hack
@@ -342,21 +369,19 @@
 		settingsViewportDiv.id = namespace + '_settingsvp';
 		viewportContainerDiv.appendChild(settingsViewportDiv);
 
-		const settingsLeftContentDiv = document.createElement('div');
-		settingsLeftContentDiv.id = namespace + '_settingsvp_left';
-		const settingsRightContentDiv = document.createElement('div');
-		settingsRightContentDiv.id = namespace + '_settingsvp_right';
-		settingsViewportDiv.appendChild(settingsLeftContentDiv);
-		settingsViewportDiv.appendChild(settingsRightContentDiv);
+		const settingsTable = document.createElement('table');
+		settingsTable.id = namespace + '_settingsvp_table';
+		settingsViewportDiv.appendChild(settingsTable);
 
 		// Add settings to the settings viewport.
 		for (const k of Object.keys(config)) {
 			if (config[k].type === 'hidden') continue;
+			const tableRow = document.createElement('tr');
 			const label = document.createElement('label');
 			label.htmlFor = config[k].key;
-			label.innerText = config[k].helptext;
+			label.innerText = config[k].display;
 			label.title = config[k].helptext;
-			settingsLeftContentDiv.appendChild(label);
+			tableRow.appendChild(label);
 
 			let elem;
 			switch (config[k].type) {
@@ -379,12 +404,20 @@
 					}
 					elem.value = config[k].value;
 					break;
-
+				case 'number':
+					elem = document.createElement('input');
+					elem.type = 'number';
+					elem.min = config[k].min;
+					elem.max = config[k].max;
+					elem.step = config[k].step;
+					elem.value = config[k].value;
+					break;
 			}
 			elem.title = config[k].helptext;
 			elem.id = namespace + config[k].key;
 			elem.addEventListener('change', configChangeHandler);
-			settingsRightContentDiv.appendChild(elem);
+			tableRow.appendChild(elem);
+			settingsTable.appendChild(tableRow);
 		}
 
 		navMenuUnorderedList.addButton('Console').addEventListener('click', _ => {
@@ -425,13 +458,21 @@
 			helptext: 'Render hanging pieces',
 			value: true
 		},
+		legitMode: {
+			key: namespace + '_legitmode',
+			type: 'checkbox',
+			display: 'Legit Mode',
+			helptext: 'Prevents the script from doing anything that could be considered cheating.',
+			value: false
+		},
 		playingAs: {
 			key: namespace + '_playingas',
 			type: 'dropdown',
 			display: 'Playing As',
 			helptext: 'What color to calculate moves for',
 			value: 'both',
-			options: ['both', 'white', 'black']
+			options: ['both', 'white', 'black', 'auto'],
+			showOnlyIf: () => !config.legitMode.value
 		},
 		whichEngine: {
 			key: namespace + '_whichengine',
@@ -439,14 +480,38 @@
 			display: 'Which Engine',
 			helptext: 'Which engine to use',
 			value: 'betafish',
-			options: ['none', 'betafish', 'random', 'cccp']
+			options: ['none', 'betafish', 'random', 'cccp'],
+			showOnlyIf: () => !config.legitMode.value
 		},
 		autoMove: {
 			key: namespace + '_automove',
 			type: 'checkbox',
 			display: 'Auto Move',
-			helptext: 'Automatically move the engine move',
-			value: true
+			helptext: 'Potentially bannable. Uses a different method for live and bot games. Bot games are not affected by the delay settings.',
+			value: true,
+			showOnlyIf: () => !config.legitMode.value
+		},
+		autoMoveMaxRandomDelay: {
+			key: namespace + '_automovemaxrandomdelay',
+			type: 'number',
+			display: 'Auto Move Max Random Delay',
+			helptext: 'Max random delay in ms for automove',
+			value: 1000,
+			min: 0,
+			max: 20000,
+			step: 100,
+			showOnlyIf: () => !config.legitMode.value && config.autoMove.value
+		},
+		autoMoveMinRandomDelay: {
+			key: namespace + '_automoveminrandomdelay',
+			type: 'number',
+			display: 'Auto Move Min Random Delay',
+			helptext: 'Min random delay in ms for automove',
+			value: 500,
+			min: 0,
+			max: 20000,
+			step: 100,
+			showOnlyIf: () => !config.legitMode.value && config.autoMove.value
 		},
 		renderWindow: {
 			key: namespace + '_renderwindow',
@@ -481,11 +546,11 @@
 			} else if (e.data.type === 'GETMOVE') {
 				if (!betafish) return self.postMessage({ type: 'ERROR', payload: 'Betafish not initialized.' });
 				if (working) return self.postMessage({ type: 'ERROR', payload: 'Betafish is already calculating.' });
-				self.postMessage({ type: 'MESSAGE', payload: 'Betafish recieved request for best move. Calculating...' });
+				// self.postMessage({ type: 'MESSAGE', payload: 'Betafish recieved request for best move. Calculating...' });
 				working = true;
 				const move = betafish.getBestMove();
 				working = false;
-				self.postMessage({ type: 'DEBUG', payload: 'Betafish has finished calculating.' })
+				// self.postMessage({ type: 'DEBUG', payload: 'Betafish has finished calculating.' })
 				self.postMessage({ type: 'MOVE', payload: { move: move, toMove: betafish.getFEN().split(' ')[1] } })
 			}
 		});
@@ -495,6 +560,8 @@
 	const betafishWorkerBlob = new Blob([`const betafishEngine=${betafishEngine.toString()};(${betafishWebWorkerFunc.toString()})();`], { type: 'application/javascript' });
 	const betafishWorkerURL = URL.createObjectURL(betafishWorkerBlob);
 	window[namespace].betafishWebWorker = new Worker(betafishWorkerURL);
+
+	const betafishPieces = { EMPTY: 0, wP: 1, wN: 2, wB: 3, wR: 4, wQ: 5, wK: 6, bP: 7, bN: 8, bB: 9, bR: 10, bQ: 11, bK: 12 };
 
 	/**
 	 * @description The listener for the betafish webworker. Data should be inputted as { type: string, payload: any }. Valid types are: 'DEBUG', 'ERROR', 'MESSAGE', 'MOVE'.
@@ -508,16 +575,28 @@
 		} else if (e.data.type === 'MESSAGE') {
 			addToConsole(e.data.payload);
 		} else if (e.data.type === 'MOVE') {
-			let move = e.data.payload.move;
+			const move = e.data.payload.move;
 			const squareToRankFile = (sq) => [Math.floor((sq - 21) / 10), sq - 21 - Math.floor((sq - 21) / 10) * 10];
 
-			from = squareToRankFile(move & 0x7f);
-			to = squareToRankFile((move >> 7) & 0x7f);
+			const from = squareToRankFile(move & 0x7f);
+			const to = squareToRankFile((move >> 7) & 0x7f);
+			const captured = (move >> 14) & 0xf;
+			const promoted = (move >> 20) & 0xf;
 
-			addToConsole(`Betafish computed best for ${e.data.payload.toMove === 'w' ? 'white' : 'black'}: ${xyToCoordInverted(from[0], from[1])}->${xyToCoordInverted(to[0], to[1])}`);
+			let promotedString = '';
+			if (promoted !== betafishPieces.EMPTY) {
+				if (promoted === betafishPieces.wQ || promoted === betafishPieces.bQ) promotedString += 'q';
+				else if (promoted === betafishPieces.wR || promoted === betafishPieces.bR) promotedString += 'r';
+				else if (promoted === betafishPieces.wB || promoted === betafishPieces.bB) promotedString += 'b';
+				else if (promoted === betafishPieces.wN || promoted === betafishPieces.bN) promotedString += 'n';
+			}
+
+			const uciMove = coordsToUCIMoveString(from, to, promotedString);
+
+			addToConsole(`Betafish computed best for ${e.data.payload.toMove === 'w' ? 'white' : 'black'}: ${uciMove}`);
 
 			if (document.location.hostname === 'www.chess.com') {
-				chesscomProcessMove(from, to, window[namespace].lastPos);
+				chesscomProcessMove(uciMove);
 			} else if (document.location.hostname === 'lichess.org') {
 				lichessRenderMove(from, to);
 			}
@@ -584,7 +663,40 @@
 		return file + rank;
 	}
 
-	let didWarnCalcHangingOverride = false;
+	/**
+	 * @description Gets the x and y coordinates from a standard notation coordinate.
+	 * @param {String} coord 
+	 * @returns {Number[]}
+	 */
+	const coordToYX = (coord) => {
+		const letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+		const file = letters.indexOf(coord[0]) + 1;
+		const rank = Number(coord[1]);
+		return [file, rank];
+	}
+
+	/**
+	 * @description Gets the x and y coordinates from a standard notation coordinate, but with the Y coordinate inverted.
+	 * @param {String} coord 
+	 * @returns {Number[]}
+	 */
+	const coordToXYInverted = (coord) => {
+		const letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+		const file = letters.indexOf(coord[0]) + 1;
+		const rank = 8 - Number(coord[1]);
+		return [rank, file];
+	}
+
+	/**
+	 * @description Converts coordinates and a promition to a UCI move
+	 * @param {Number[]} from the coordinate to move from
+	 * @param {Number[]} to the coordinate to move to
+	 * @param {String} promition piece to promote to
+	 * @return {String} UCI move 
+	 */
+	const coordsToUCIMoveString = (from, to, promotion) => {
+		return xyToCoordInverted(from[0], from[1]) + xyToCoordInverted(to[0], to[1]) + promotion;
+	}
 
 	/**
 	 * @description Renders hanging pieces on the board.
@@ -636,16 +748,11 @@
 				// If the tile is not threatened, or is protected, continue.
 				if (!tile.isThreatened || tile.isProtected) continue;
 
-				if (!config.whichEngine.value !== 'none') {
-					let isWhite = tile.piece === tile.piece.toUpperCase();
-					if ((isWhite && toMove === 'w' || !isWhite && toMove === 'b')) continue;
+				let isWhite = tile.piece === tile.piece.toUpperCase();
+				if ((isWhite && toMove === 'w' || !isWhite && toMove === 'b')) continue;
 
-					for (const threat of tile.threatenedBy) {
-						markings.push({ type: 'arrow', data: { color: '#ff7777', from: xyToCoord(threat[0], threat[1]), to: xyToCoord(i, j) } });
-					}
-				} else if (!didWarnCalcHangingOverride) {
-					addToConsole('calcBestMove will override the arrows from renderHanging');
-					didWarnCalcHangingOverride = true;
+				for (const threat of tile.threatenedBy) {
+					markings.push({ type: 'arrow', data: { color: '#ff7777', from: xyToCoord(threat[0], threat[1]), to: xyToCoord(i, j) } });
 				}
 			}
 		}
@@ -664,6 +771,16 @@
 	 */
 	const distanceToEnd = (yCoord, isWhite) => {
 		return isWhite ? 7 - yCoord : yCoord;
+	}
+
+	/**
+	 * @description Returns a new promise that resolves after the given delay.
+	 * @param {Number} ms Delay to resolve after in miliseconds.
+	 * @returns {Promise} Promise that resolves after the given time.
+	 */
+	const resolveAfterMs = (ms = 1000) => {
+		if (ms <= 0) return new Promise(res => res());
+		return new Promise(res => setTimeout(res, ms));
 	}
 
 	/**
@@ -690,6 +807,8 @@
 		if (pushMoves.length > 0) return pushMoves[0];
 	}
 
+	window[namespace].lastEngineMoveCalcStartTime = performance.now();
+
 	/**
 	 * @description Calculates a move based on the engine selected in the config.
 	 * @param {String} fen The FEN of the position.
@@ -697,9 +816,19 @@
 	 */
 	const calcEngineMove = (fen) => {
 		const toMove = fen.split(' ')[1];
-		if (config.playingAs.value !== 'both' && (config.playingAs.value === 'white') !== (toMove === 'w')) return false;
+		let playingAs = config.playingAs.value;
+		if (playingAs === 'auto') {
+			const board = document.getElementsByTagName('chess-board')[0];
+			if (board?.game?.getPlayingAs) {
+				playingAs = board.game.getPlayingAs() === 1 ? 'white' : board.game.getPlayingAs() === 2 ? 'black' : 'both';
+			} else {
+				playingAs = 'both';
+			}
+		}
+		if (playingAs !== 'both' && (playingAs === 'white') !== (toMove === 'w')) return false;
 
 		addToConsole(`Calculating move based on engine: ${config.whichEngine.value}...`);
+		window[namespace].lastEngineMoveCalcStartTime = performance.now();
 
 		let from, to;
 
@@ -732,40 +861,86 @@
 		if (!from || !to) return;
 
 		if (document.location.hostname === 'www.chess.com') {
-			chesscomProcessMove(from, to, window[namespace].lastPos);
+			chesscomProcessMove(from, to);
 		} else if (document.location.hostname === 'lichess.org') {
 			lichessRenderMove(from, to);
 		}
 	}
 
+	// https://github.com/everyonesdesign/Chess-Helper/blob/8d2b2f6e7ecbd50cc003cc791d281ca71a55baf7/app/src/chessboard/component-chessboard/index.ts
+	const chessComGetSquarePosition = (square, fromDoc = true) => {
+		const board = document.getElementsByTagName('chess-board')[0];
+		if (!board || !board.game) return;
+		const isFlipped = board.game.getOptions().flipped;
+		const coords = coordToYX(square);
+		const { left, top, width } = board.getBoundingClientRect();
+		const squareWidth = width / 8;
+		const correction = squareWidth / 2;
+
+		if (!isFlipped) {
+			return {
+				x: (fromDoc ? left : 0) + squareWidth * coords[0] - correction,
+				y: (fromDoc ? top : 0) + width - squareWidth * coords[1] + correction,
+			};
+		} else {
+			return {
+				x: (fromDoc ? left : 0) + width - squareWidth * coords[0] + correction,
+				y: (fromDoc ? top : 0) + squareWidth * coords[1] - correction,
+			};
+		}
+	}
+
 	/**
 	 * @description Processes a move on chess.com.
-	 * @param {Array} from The from coordinates.
-	 * @param {Array} to The to coordinates.
-	 * @param {{piece: String, isProtected: boolean, protectedBy: String[], isThreatened: boolean, threatenedBy: String[]}[][]} position The position.
+	 * @param {String} uciMove move
 	 * @returns {void}
 	 */
-	const chesscomProcessMove = (from, to, position) => {
+	const chesscomProcessMove = (uciMove) => {
 		let board = document.getElementsByTagName('chess-board')[0];
 		if (!board?.game?.markings?.addOne || !board?.game?.markings?.removeAll) return false;
 
 		if (!config.renderHanging.value) board.game.markings.removeAll();
 
-		board.game.markings.addOne({ type: 'arrow', data: { color: '#77ff77', from: xyToCoordInverted(from[0], from[1]), to: xyToCoordInverted(to[0], to[1]) } });
+		board.game.markings.addOne({ type: 'arrow', data: { color: '#77ff77', from: uciMove.substring(0, 2), to: uciMove.substring(2, 4) } });
 
-		if (config.autoMove.value && position) {
-			if (document.location.pathname !== '/play/computer') {
-				configChangeHandler({ key: 'autoMove', value: false });
-				alert('You must be on the computer play page to use this feature.');
-				return;
+		if (config.autoMove.value) {
+			if (document.location.pathname === '/play/computer') {
+				board.game.move(uciMove);
+			} else {
+				const moveFinishTime = performance.now();
+				const existingDelay = moveFinishTime - window[namespace].lastEngineMoveCalcStartTime;
+				const targetTime = Math.floor(Math.random() * config.autoMoveMaxRandomDelay.value) + config.autoMoveMinRandomDelay.value;
+				(async _ => {
+					await resolveAfterMs(targetTime - existingDelay);
+					if (uciMove.length > 4) {
+						board.game.move({
+							from: uciMove.substring(0, 2),
+							to: uciMove.substring(2, 4),
+							promotion: uciMove.substring(4, 5),
+							animate: false,
+							userGenerated: true
+						});
+					} else {
+						const fromPos = chessComGetSquarePosition(uciMove.substring(0, 2));
+						const toPos = chessComGetSquarePosition(uciMove.substring(2, 4));
+						board.dispatchEvent(new PointerEvent('pointerdown', {
+							bubbles: true,
+							cancelable: true,
+							view: window,
+							clientX: fromPos.x,
+							clientY: fromPos.y,
+						}));
+						board.dispatchEvent(new PointerEvent('pointerup', {
+							bubbles: true,
+							cancelable: true,
+							view: window,
+							clientX: toPos.x,
+							clientY: toPos.y,
+						}));
+						console.log(board.game.cheatDetection.get());
+					}
+				})();
 			}
-
-			const piece = position[7 - from[0]][from[1]]?.piece.toUpperCase();
-			if (!piece) return;
-
-			board.game.move(piece + xyToCoordInverted(to[0], to[1]));
-
-			addToConsole(piece + xyToCoordInverted(to[0], to[1]))
 		}
 	}
 
@@ -790,12 +965,11 @@
 
 		window[namespace].lastPos = parsePositionPieceRelations(fen);
 
-
 		if (config.renderHanging.value && fen !== window[namespace].lastFEN) {
 			renderHanging(fen);
 		}
 
-		if (config.whichEngine.value !== 'none' && fen !== window[namespace].lastFEN) {
+		if (!config.legitMode.value && config.whichEngine.value !== 'none' && fen !== window[namespace].lastFEN) {
 			calcEngineMove(fen);
 		}
 

@@ -1,6 +1,7 @@
 // https://github.com/Strryke/betafish/blob/f281791317d766cb5deaf453a221da632b67df1c/js/betafish.js
 // Modified 14.2.2023 to expose the best move function.
 // Modified 23.2.2023 to change the generic name and comment out searchcontroller logging
+// Modified 27.2.2023 to diable additional logging
 
 const betafishEngine = function () {
     /****************************\
@@ -631,9 +632,9 @@ const betafishEngine = function () {
         if (fen[fenCnt] != "-") {
             file = fen[fenCnt].charCodeAt() - "a".charCodeAt();
             rank = fen[fenCnt + 1].charCodeAt() - "1".charCodeAt();
-            console.log(
-                "fen[fenCnt]:" + fen[fenCnt] + " File:" + file + " Rank:" + rank
-            );
+            // console.log(
+            //     "fen[fenCnt]:" + fen[fenCnt] + " File:" + file + " Rank:" + rank
+            // );
             GameBoard.enPas = fileRanktoSquare(file, rank);
         }
 
