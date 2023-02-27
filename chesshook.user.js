@@ -2,7 +2,7 @@
 // @name        Chesshook
 // @include    	https://www.chess.com/*
 // @grant       none
-// @require		https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
+// @require		https://gist.githubusercontent.com/0mlml/78356add255e104ee952ef5d80b1e385/raw/83f743135412cdb18e5b9156abc1516e861e1ff2/betafish.js
 // @version     1.0.0
 // @author      0mlml
 // @description QOL
@@ -14,7 +14,7 @@
 (() => {
 	/**
 	 * @description Handles config changes, either manually with and object that has a key and value, or from an event.
-	 * @param {{key: string, value:string}|Event} input 
+	 * @param {{key: string, value:string}|Event} input
 	 * @returns {void}
 	 */
 	const configChangeHandler = (input) => {
@@ -55,15 +55,13 @@
 		configDisplayUpdater();
 
 		// Apply thinking time
-		window[namespace].betafishWebWorker.postMessage({ type: 'THINKINGTIME', payload: Number(config.betafishThinkingTime.value) });
+		if (configKey === config.betafishThinkingTime.key) window[namespace].betafishWebWorker.postMessage({ type: 'THINKINGTIME', payload: Number(config.betafishThinkingTime.value) });
 
 		// If we are not rendering hanging pieces, and on chess.com, remove all markings.
 		if (!config.renderHanging.value) {
-			if (document.location.hostname === 'www.chess.com') {
-				let board = document.getElementsByTagName('chess-board')[0];
-				if (board?.game?.markings?.removeAll) {
-					board.game.markings.removeAll();
-				}
+			let board = document.getElementsByTagName('chess-board')[0];
+			if (board?.game?.markings?.removeAll) {
+				board.game.markings.removeAll();
 			}
 		}
 	}
@@ -85,7 +83,7 @@
 
 	/**
 	 * @description Function to be called when a key is pressed. Will toggle the main window if alt+k is pressed.
-	 * @param {KeyboardEvent} e 
+	 * @param {KeyboardEvent} e
 	 */
 	const keyPressEventListener = e => {
 		if (e.altKey && e.key === 'k') {
@@ -216,7 +214,7 @@
 
 	/**
 	 * @description Changes the viewport to the one specified
-	 * @param {String} viewport 
+	 * @param {String} viewport
 	 * @returns {void}
 	 */
 	const switchToViewport = (viewport) => {
@@ -552,7 +550,7 @@
 	};
 
 	/**
-	 * @description The webworker function for the betafish engine.  Data should be inputted as { type: string, payload: any }. Valid types are: FEN, GETMOVE. The payload for FEN should be a FEN string. The payload for GETMOVE should be null. The webworker will respond with { type: string, payload: any }. Valid types are: MESSAGE, DEBUG, ERROR.
+	 * @description The webworker function for the betafish engine.  Data should be inputted as { type: string, payload: any }. Valid types are: FEN, GETMOVE, THINKINGTIME. The payload for FEN should be a FEN string. The payload for GETMOVE should be null. The payload for THINKINGTIME should be a number. The webworker will respond with { type: string, payload: any }. Valid types are: MOVE, MESSAGE, DEBUG, ERROR.
 	 * @returns {void}
 	 */
 	const betafishWebWorkerFunc = () => {
@@ -624,11 +622,7 @@
 
 			addToConsole(`Betafish computed best for ${e.data.payload.toMove === 'w' ? 'white' : 'black'}: ${uciMove}`);
 
-			if (document.location.hostname === 'www.chess.com') {
-				chesscomProcessMove(uciMove);
-			} else if (document.location.hostname === 'lichess.org') {
-				lichessRenderMove(from, to);
-			}
+			processMove(uciMove);
 		}
 	}
 
@@ -643,7 +637,7 @@
 		if (config.renderWindow !== 'true') console.log('Chesshook has initialized in the background. To open the window, use the hotkey alt+k')
 	}
 
-	// Last FEN and position. Mostly for debug, but also for automove.
+	// Last FEN and position. Mostly for debug.
 	window[namespace].lastFEN = '';
 	window[namespace].lastPos = {};
 
@@ -659,7 +653,7 @@
 
 	/**
 	 * @description Gets the value of a piece by letter.
-	 * @param {String} piece The piece letter. 
+	 * @param {String} piece The piece letter.
 	 * @returns {Number} The value of the piece.
 	 */
 	const getPieceValue = (piece) => {
@@ -694,7 +688,7 @@
 
 	/**
 	 * @description Gets the x and y coordinates from a standard notation coordinate.
-	 * @param {String} coord 
+	 * @param {String} coord
 	 * @returns {Number[]}
 	 */
 	const coordToYX = (coord) => {
@@ -706,7 +700,7 @@
 
 	/**
 	 * @description Gets the x and y coordinates from a standard notation coordinate, but with the Y coordinate inverted.
-	 * @param {String} coord 
+	 * @param {String} coord
 	 * @returns {Number[]}
 	 */
 	const coordToXYInverted = (coord) => {
@@ -721,28 +715,10 @@
 	 * @param {Number[]} from the coordinate to move from
 	 * @param {Number[]} to the coordinate to move to
 	 * @param {String} promition piece to promote to
-	 * @return {String} UCI move 
+	 * @return {String} UCI move
 	 */
 	const coordsToUCIMoveString = (from, to, promotion) => {
 		return xyToCoordInverted(from[0], from[1]) + xyToCoordInverted(to[0], to[1]) + promotion;
-	}
-
-	/**
-	 * @description Renders hanging pieces on the board.
-	 * @param {String} fen The FEN of the position.
-	 * @returns {void}
-	 */
-	const renderHanging = (fen) => {
-		addToConsole('Marking unprotected...');
-
-		let position = parsePositionPieceRelations(fen);
-		if (!position) return false;
-
-		if (document.location.hostname === 'www.chess.com') {
-			chesscomRenderHanging(fen, position);
-		} else if (document.location.hostname === 'lichess.org') {
-			lichessRenderHanging(position);
-		}
 	}
 
 	/**
@@ -751,7 +727,7 @@
 	 * @param {{piece: String, isProtected: boolean, protectedBy: String[], isThreatened: boolean, threatenedBy: String[]}[][]} position The position object.
 	 * @returns {void}
 	 */
-	const chesscomRenderHanging = (fen, position) => {
+	const renderHanging = (fen) => {
 		const toMove = fen.split(' ')[1];
 
 		// Check that the board is loaded and that the markings API is available.
@@ -760,6 +736,8 @@
 
 		// Remove all markings.
 		board.game.markings.removeAll();
+
+		const position = parsePositionPieceRelations(fen);
 
 		let markings = [];
 		for (let i = 0; i < position.length; i++) {
@@ -788,10 +766,6 @@
 		board.game.markings.addMany(markings);
 	}
 
-	const lichessRenderHanging = (fen, position) => {
-		// not impl
-	}
-
 	/**
 	 * @description Gets the distance from the end of the board.
 	 * @param {Number} yCoord The y coordinate.
@@ -814,8 +788,8 @@
 
 	/**
 	 * @description The Checkmate, Check, Capture, Push engine.
-	 * @param {String} fen The FEN of the position. 
-	 * @returns 
+	 * @param {String} fen The FEN of the position.
+	 * @returns
 	 */
 	const cccpEngine = (fen) => {
 		const position = parsePositionPieceRelations(fen);
@@ -889,15 +863,11 @@
 
 		if (!from || !to) return;
 
-		if (document.location.hostname === 'www.chess.com') {
-			chesscomProcessMove(from, to);
-		} else if (document.location.hostname === 'lichess.org') {
-			lichessRenderMove(from, to);
-		}
+		processMove(from, to);
 	}
 
 	// https://github.com/everyonesdesign/Chess-Helper/blob/8d2b2f6e7ecbd50cc003cc791d281ca71a55baf7/app/src/chessboard/component-chessboard/index.ts
-	const chessComGetSquarePosition = (square, fromDoc = true) => {
+	const getSquarePosition = (square, fromDoc = true) => {
 		const board = document.getElementsByTagName('chess-board')[0];
 		if (!board || !board.game) return;
 		const isFlipped = board.game.getOptions().flipped;
@@ -924,7 +894,7 @@
 	 * @param {String} uciMove move
 	 * @returns {void}
 	 */
-	const chesscomProcessMove = (uciMove) => {
+	const processMove = (uciMove) => {
 		let board = document.getElementsByTagName('chess-board')[0];
 		if (!board?.game?.markings?.addOne || !board?.game?.markings?.removeAll) return false;
 
@@ -950,8 +920,8 @@
 							userGenerated: true
 						});
 					} else {
-						const fromPos = chessComGetSquarePosition(uciMove.substring(0, 2));
-						const toPos = chessComGetSquarePosition(uciMove.substring(2, 4));
+						const fromPos = getSquarePosition(uciMove.substring(0, 2));
+						const toPos = getSquarePosition(uciMove.substring(2, 4));
 						board.dispatchEvent(new PointerEvent('pointerdown', {
 							bubbles: true,
 							cancelable: true,
@@ -972,10 +942,6 @@
 		}
 	}
 
-	const lichessRenderMove = (from, to) => {
-		// not impl
-	}
-
 	let lastGamePath = '';
 
 	/**
@@ -983,22 +949,18 @@
 	 * @returns {void}
 	 */
 	const updateLoop = () => {
-		let fen;
-		if (document.location.hostname === 'www.chess.com') {
+		const board = document.getElementsByTagName('chess-board')[0];
 
-			const board = document.getElementsByTagName('chess-board')[0];
-			if (board?.game?.getFEN) fen = board.game.getFEN();
-			if (config.autoQueue.value && board?.game?.getPositionInfo()?.gameOver && lastGamePath !== document.location.pathname) {
-				try {
-					document.querySelector('div.tabs-tab[data-tab=newGame]').click();
-					document.querySelector('button[data-cy=new-game-index-play]').click();
-					lastGamePath = document.location.pathname;
-				} catch {
-					// do nothing
-				}
+		let fen;
+		if (board?.game?.getFEN) fen = board.game.getFEN();
+		if (config.autoQueue.value && board?.game?.getPositionInfo()?.gameOver && lastGamePath !== document.location.pathname) {
+			try {
+				document.querySelector('div.tabs-tab[data-tab=newGame]').click();
+				document.querySelector('button[data-cy=new-game-index-play]').click();
+				lastGamePath = document.location.pathname;
+			} catch {
+				// do nothing
 			}
-		} else if (document.location.hostname === 'lichess.org') {
-			// Yet to find a way to get the FEN on lichess
 		}
 
 		if (!fen) return;
@@ -1263,11 +1225,6 @@
 			position[startX][startY] = null;
 			const isCheckmate = isKingInCheckmate(position, !isWhite, 0);
 			position[startX][startY] = position[endX][endY];
-			position[endX][endY] = tempPiece;
-
-			if (isCheckmate) {
-				checkmateMoves.push(legalMoves[i]);
-			}
 
 		}
 
