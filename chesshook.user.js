@@ -3,7 +3,7 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require		https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     1.0.0
+// @version     1.0.1
 // @author      0mlml
 // @description QOL
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -863,7 +863,9 @@
 
 		if (!from || !to) return;
 
-		processMove(from, to);
+		const uciMove = xyToCoordInverted(from[0], from[1]) + xyToCoordInverted(to[0], to[1]);
+
+		processMove(uciMove);
 	}
 
 	// https://github.com/everyonesdesign/Chess-Helper/blob/8d2b2f6e7ecbd50cc003cc791d281ca71a55baf7/app/src/chessboard/component-chessboard/index.ts
@@ -908,7 +910,7 @@
 			} else {
 				const moveFinishTime = performance.now();
 				const existingDelay = moveFinishTime - window[namespace].lastEngineMoveCalcStartTime;
-				const targetTime = Math.floor(Math.random() * config.autoMoveMaxRandomDelay.value) + config.autoMoveMinRandomDelay.value;
+				const targetTime = Math.floor(Math.random() * (config.autoMoveMaxRandomDelay.value - config.autoMoveMinRandomDelay.value)) + config.autoMoveMinRandomDelay.value;
 				(async _ => {
 					await resolveAfterMs(targetTime - existingDelay);
 					if (uciMove.length > 4) {
