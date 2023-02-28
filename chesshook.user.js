@@ -55,7 +55,7 @@
 		configDisplayUpdater();
 
 		// Apply thinking time
-		if (configKey === config.betafishThinkingTime.key) window[namespace].betafishWebWorker.postMessage({ type: 'THINKINGTIME', payload: Number(config.betafishThinkingTime.value) });
+		if (configKey === 'betafishThinkingTime') window[namespace].betafishWebWorker.postMessage({ type: 'THINKINGTIME', payload: Number(config.betafishThinkingTime.value) });
 
 		// If we are not rendering hanging pieces, and on chess.com, remove all markings.
 		if (!config.renderHanging.value) {
