@@ -3,7 +3,7 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require		https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     1.0.1
+// @version     1.1.0
 // @author      0mlml
 // @description QOL
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -831,7 +831,9 @@
 		if (playingAs !== 'both' && (playingAs === 'white') !== (toMove === 'w')) return false;
 
 		addToConsole(`Calculating move based on engine: ${config.whichEngine.value}...`);
-		window[namespace].lastEngineMoveCalcStartTime = performance.now();
+		const fullMoveNumber = parseInt(fen.split(' ')[5]);
+		if (fullMoveNumber < 6) window[namespace].lastEngineMoveCalcStartTime = performance.now() - 5000;
+		else window[namespace].lastEngineMoveCalcStartTime = performance.now();
 
 		let from, to;
 
