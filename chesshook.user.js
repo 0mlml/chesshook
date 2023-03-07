@@ -72,11 +72,21 @@
 			} else {
 				externalEngineWorker.postMessage({ type: 'INIT', payload: config.externalEngineURL.value });
 			}
+			if (!config.hasWarnedAboutExternalEngine.value || config.hasWarnedAboutExternalEngine.value === 'false') {
+				addToConsole('Please note that the external engine is not for the faint of heart. It requires tinkering and the user to host the chesshook intermediary server.');
+				alert('Please note that the external engine is not for the faint of heart. It requires tinkering and the user to host the chesshook intermediary server.')
+				config.hasWarnedAboutExternalEngine.value = 'true';
+				window.localStorage.setItem(config.hasWarnedAboutExternalEngine.key, 'true');
+			}
 		}
 
 		// Validate external engine path
 		if (configKey === 'externalEngineURL' && config.whichEngine.value === 'external') {
 			externalEngineWorker.postMessage({ type: 'INIT', payload: config.externalEngineURL.value });
+		}
+
+		if (configKey === 'externalEnginePasskey') {
+			externalEngineWorker.postMessage({ type: 'AUTH', payload: config.externalEnginePasskey.value });
 		}
 	}
 
@@ -253,7 +263,7 @@
 	 * @returns {HTMLDivElement} The main window element.
 	 */
 	const createMainWindow = () => {
-		let css = `div#chesshook_windowmain{overflow:auto;resize:both;position:fixed;min-height:30vh;min-width:30vw;aspect-ratio:1.7;background:#000;display:none;flex-direction:column;align-items:center;z-index:10000990;box-shadow:0 0 10px #000;border-radius:2px;border:2px solid #222;color:#ccc;font-family:monospace}div#chesshook_windowmain button{background-color:#000;color:#ccc;margin:0 0 0 .5vw}span#chesshook_windowmain_headerbar{top:0;left:0;margin:0;width:100%;height:3vh;background:#828282;display:flex;flex-direction:column;cursor:move}span#chesshook_windowmain_topdecoline{width:100%;height:10%;margin:0;padding:0;background:linear-gradient(to right,red,orange,#ff0,green,#00f,indigo,violet)}div#chesshook_windowmain_tabs{width:100%;height:90%;margin:0;padding:0;background-color:#000;border-bottom:2px solid #222;display:flex;flex-direction:row;cursor:move}div#chesshook_windowmain_tabs_title{margin:0;padding:0;display:flex;align-items:center;align-content:center;user-select:none;flex-grow:1000}div#chesshook_windowmain_tabs_x{height:calc(100%-3px);background:#222;aspect-ratio:1;margin:0;padding:0;display:flex;align-items:center;align-content:center;justify-content:center;cursor:pointer;border:2px solid #222;border-radius:5px}div#chesshook_windowmain_menutoggle{display:block;-webkit-user-select:none;user-select:none;height:calc(100%-3px);aspect-ratio:1;margin:0;padding:3px}div#chesshook_windowmain_menutoggle input{display:block;width:40px;height:32px;position:absolute;top:-7px;left:-5px;cursor:pointer;opacity:0;z-index:10000994;-webkit-touch-callout:none}ul#chesshook_windowmain_menutoggle_menu{margin:0;list-style-type:none;-webkit-font-smoothing:antialiased;opacity:0;transition:opacity .5s cubic-bezier(.77, .2, .05, 1);width:7vw;background-color:#000;position:absolute;top:3vh;left:0;border:2px solid #222;border-radius:5px;padding:0;flex-direction:column;align-items:stretch;z-index:10000991;visibility:hidden}ul#chesshook_windowmain_menutoggle_menu>li{height:3.5vh;background-color:#000;border-bottom:2px solid #222;text-align:center;line-height:3.5vh;font-size:1.75vh;color:#fff;font-family:monospace;user-select:none;cursor:pointer;text-decoration:none}div#chesshook_windowmain_menutoggle span{display:block;width:24px;height:3px;margin-bottom:3px;position:relative;background:#cdcdcd;border-radius:3px;z-index:10000992;transform-origin:4px 0px;transition:transform .5s cubic-bezier(.77, .2, .05, 1),background .5s cubic-bezier(.77, .2, .05, 1),opacity .55s}div#chesshook_windowmain_menutoggle span:first-child{transform-origin:0% 0%}div#chesshook_windowmain_menutoggle span:nth-last-child(2){transform-origin:0% 100%}div#chesshook_windowmain_menutoggle input:checked~span{opacity:1;transform:rotate(45deg) translate(-2px,-1px)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(3){opacity:0;transform:rotate(0) scale(.2,.2)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(2){transform:rotate(-45deg) translate(0,-1px)}div#chesshook_windowmain_menutoggle input:checked~ul{opacity:1;visibility:visible}div#chesshook_windowmain_viewportcontainer{width:100%;height:90%;position:absolute;margin:0;padding:0;top:10%;left:0}div#chesshook_consolevp{width:100%;height:100%;overflow-y:scroll;flex-direction:column}div#chesshook_settingsvp{width:100%;height:100%;overflow-y:scroll;display:none;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:center}table#chesshook_settingsvp_table{width:100%;height:100%;display:flex;flex-direction:column;align-items:stretch;align-content:stretch}table#chesshook_settingsvp_table>tr{display:flex;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:flex-start;border-bottom:2px solid #222}table#chesshook_settingsvp_table>tr>label{padding-right:5px}`;
+		let css = `div#chesshook_windowmain{overflow:auto;resize:both;position:fixed;min-height:30vh;min-width:30vw;aspect-ratio:1.7;background:#000;display:none;flex-direction:column;align-items:center;z-index:10000990;box-shadow:0 0 10px #000;border-radius:2px;border:2px solid #222;color:#ccc;font-family:monospace}div#chesshook_windowmain button{background-color:#000;color:#ccc;margin:0 0 0 .5vw}span#chesshook_windowmain_headerbar{top:0;left:0;margin:0;width:100%;height:3vh;background:#828282;display:flex;flex-direction:column;cursor:move}span#chesshook_windowmain_topdecoline{width:100%;height:10%;margin:0;padding:0;background:linear-gradient(to right,red,orange,#ff0,green,#00f,indigo,violet)}div#chesshook_windowmain_tabs{width:100%;height:90%;margin:0;padding:0;background-color:#000;border-bottom:2px solid #222;display:flex;flex-direction:row;cursor:move}div#chesshook_windowmain_tabs_title{margin:0;padding:0;display:flex;align-items:center;align-content:center;user-select:none;flex-grow:1000}div#chesshook_windowmain_tabs_x{height:calc(100%-3px);background:#222;aspect-ratio:1;margin:0;padding:0;display:flex;align-items:center;align-content:center;justify-content:center;cursor:pointer;border:2px solid #222;border-radius:5px}div#chesshook_windowmain_menutoggle{display:block;-webkit-user-select:none;user-select:none;height:calc(100%-3px);aspect-ratio:1;margin:0;padding:3px}div#chesshook_windowmain_menutoggle input{display:block;width:40px;height:32px;position:absolute;top:-7px;left:-5px;cursor:pointer;opacity:0;z-index:10000994;-webkit-touch-callout:none}ul#chesshook_windowmain_menutoggle_menu{margin:0;list-style-type:none;-webkit-font-smoothing:antialiased;opacity:0;transition:opacity .5s cubic-bezier(.77, .2, .05, 1);width:7vw;background-color:#000;position:absolute;top:3vh;left:0;border:2px solid #222;border-radius:5px;padding:0;flex-direction:column;align-items:stretch;z-index:10000991;visibility:hidden}div#chesshook_consolevp,div#chesshook_controlpanelvp{flex-direction:column;height:100%;width:100%;overflow-y:scroll}ul#chesshook_windowmain_menutoggle_menu>li{height:3.5vh;background-color:#000;border-bottom:2px solid #222;text-align:center;line-height:3.5vh;font-size:1.75vh;color:#fff;font-family:monospace;user-select:none;cursor:pointer;text-decoration:none}div#chesshook_windowmain_menutoggle span{display:block;width:24px;height:3px;margin-bottom:3px;position:relative;background:#cdcdcd;border-radius:3px;z-index:10000992;transform-origin:4px 0px;transition:transform .5s cubic-bezier(.77, .2, .05, 1),background .5s cubic-bezier(.77, .2, .05, 1),opacity .55s}div#chesshook_windowmain_menutoggle span:first-child{transform-origin:0% 0%}div#chesshook_windowmain_menutoggle span:nth-last-child(2){transform-origin:0% 100%}div#chesshook_windowmain_menutoggle input:checked~span{opacity:1;transform:rotate(45deg) translate(-2px,-1px)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(3){opacity:0;transform:rotate(0) scale(.2,.2)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(2){transform:rotate(-45deg) translate(0,-1px)}div#chesshook_windowmain_menutoggle input:checked~ul{opacity:1;visibility:visible}div#chesshook_windowmain_viewportcontainer{width:100%;height:90%;position:absolute;margin:0;padding:0;top:10%;left:0}div#chesshook_settingsvp{width:100%;height:100%;overflow-y:scroll;display:none;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:center}div#chesshook_controlpanelvp{display:none}table#chesshook_settingsvp_table{width:100%;height:100%;display:flex;flex-direction:column;align-items:stretch;align-content:stretch}table#chesshook_settingsvp_table>tr{display:flex;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:flex-start;border-bottom:2px solid #222}table#chesshook_settingsvp_table>tr>label{padding-right:5px}div#chesshook_windowmain textarea{width:100%;height:45%;resize:none;overflow-y:scroll;background-color:#000;color:#fff;font-family:monospace;font-size:1.5vh;border:2px solid #222;border-radius:5px;padding:5px}`;
 		const styleSheetNode = document.createElement('style');
 
 		// Compatibility hack
@@ -335,6 +345,29 @@
 		const consoleViewportDiv = document.createElement('div');
 		consoleViewportDiv.id = namespace + '_consolevp';
 		viewportContainerDiv.appendChild(consoleViewportDiv);
+
+		const controlPanelViewportDiv = document.createElement('div');
+		controlPanelViewportDiv.id = namespace + '_controlpanelvp';
+		viewportContainerDiv.appendChild(controlPanelViewportDiv);
+
+		const websocketOutputTextArea = document.createElement('textarea');
+		websocketOutputTextArea.id = namespace + '_websocketoutput';
+		websocketOutputTextArea.readOnly = true;
+		controlPanelViewportDiv.appendChild(websocketOutputTextArea);
+
+		const engineOutputTextArea = document.createElement('textarea');
+		engineOutputTextArea.id = namespace + '_engineoutput';
+		engineOutputTextArea.readOnly = true;
+		controlPanelViewportDiv.appendChild(engineOutputTextArea);
+
+		const requestBoardUpdateButton = document.createElement('button');
+		requestBoardUpdateButton.id = namespace + '_requestboardupdate';
+		requestBoardUpdateButton.innerText = 'Request Board Update';
+		requestBoardUpdateButton.addEventListener('click', e => {
+			e.preventDefault();
+			window[namespace].lastFEN = null;
+		});
+		controlPanelViewportDiv.appendChild(requestBoardUpdateButton);
 
 		const exploitsViewportDiv = document.createElement('div');
 		exploitsViewportDiv.id = namespace + '_exploitsvp';
@@ -448,6 +481,9 @@
 			switchToViewport('exploitsvp');
 		});
 
+		navMenuUnorderedList.addButton('External').addEventListener('click', _ => {
+			switchToViewport('controlpanelvp');
+		});
 
 		document.body.appendChild(mainDiv);
 
@@ -585,7 +621,12 @@
 			key: namespace + '_lastviewport',
 			type: 'hidden',
 			value: 'consolevp'
-		}
+		},
+		hasWarnedAboutExternalEngine: {
+			key: namespace + '_haswarnedaboutexternalengine',
+			type: 'hidden',
+			value: false
+		},
 	};
 
 	/**
@@ -600,6 +641,7 @@
 		self.whatEngine = null;
 		self.intermediaryVersionString = null;
 		self.ws = null;
+		self.enginePassKey = null;
 		self.closeWs = () => {
 			if (self.ws !== null) {
 				self.ws.close();
@@ -612,10 +654,10 @@
 			self.ws.onopen = () => {
 				self.postMessage({ type: 'DEBUG', payload: 'Connected to engine intermediary' });
 				self.send('whoareyou');
-				self.send('isready');
 			};
 			self.ws.onclose = () => {
 				self.postMessage({ type: 'DEBUG', payload: 'Disconnected from engine' });
+				self.postMessage({ type: 'WSCLOSE' });
 				self.intermediaryVersionString = null;
 			};
 			self.ws.onerror = (e) => {
@@ -637,7 +679,11 @@
 					if (data === 'authok') {
 						self.postMessage({ type: 'MESSAGE', payload: 'Engine authentication successful' });
 					} else {
-						self.postMessage({ type: 'ERROR', payload: 'Engine authentication failed' });
+						if (!self.enginePassKey) {
+							self.postMessage({ type: 'NEEDAUTH' });
+						} else {
+							self.postMessage({ type: 'ERROR', payload: 'Engine authentication failed' });
+						}
 					}
 				} else if (data.startsWith('sub')) {
 					if (data === 'subok') {
@@ -668,6 +714,10 @@
 					} else {
 						self.postMessage({ type: 'ERROR', payload: 'Engine unlock failed' });
 					}
+				} else if (data.startsWith('engine')) {
+					self.whichEngine = data.split(' ')[1];
+					self.postMessage({ type: 'DEBUG', payload: 'Connected to engine ' + self.whichEngine });
+					self.postMessage({ type: 'ENGINE', payload: self.whichEngine });
 				} else {
 					self.postMessage({ type: 'UCI', payload: data });
 				}
@@ -688,6 +738,7 @@
 				}
 			} else if (e.data.type === 'INIT') {
 				if (!e.data.payload) return self.postMessage({ type: 'ERROR', payload: 'No URL provided' });
+				if (!e.data.payload.startsWith('ws://')) return self.postMessage({ type: 'ERROR', payload: 'URL must start with ws://' });
 				self.openWs(e.data.payload);
 				self.wsPath = e.data.payload;
 			} else if (e.data.type === 'AUTH') {
@@ -698,9 +749,12 @@
 			} else if (e.data.type === 'UNSUB') {
 				self.send('unsub');
 			} else if (e.data.type === 'LOCK') {
+				if (self.hasLock) return self.postMessage({ type: 'ERROR', payload: 'Already have lock' });
 				self.send('lock');
 			} else if (e.data.type === 'UNLOCK') {
 				self.send('unlock');
+			} else if (e.data.type === 'WHATENGINE') {
+				self.send('whatengine');
 			}
 		});
 	}
@@ -712,16 +766,60 @@
 	let externalEngineName = null;
 
 	externalEngineWorker.onmessage = (e) => {
+		const maxlines = 50;
+		const websocketOutputTextArea = document.getElementById(namespace + '_websocketoutput');
+		const engineOutputTextArea = document.getElementById(namespace + '_engineoutput');
+
+		const addToWebSocketOutput = (line) => {
+			if (websocketOutputTextArea) {
+				const lines = websocketOutputTextArea.value.split('\n');
+				lines.push(line);
+				if (lines.length > maxlines) {
+					lines.shift();
+				}
+				websocketOutputTextArea.value = lines.join('\n');
+			}
+		}
+
+		const addToEngineOutput = (line) => {
+			if (engineOutputTextArea) {
+				const lines = engineOutputTextArea.value.split('\n');
+				lines.push(line);
+				if (lines.length > maxlines) {
+					lines.shift();
+				}
+				engineOutputTextArea.value = lines.join('\n');
+			}
+		}
+
 		if (e.data.type === 'DEBUG') {
 			console.log(e.data.payload);
+			addToWebSocketOutput(e.data.payload);
 		} else if (e.data.type === 'ERROR') {
 			console.error(e.data.payload, e.data.err);
+			addToWebSocketOutput(e.data.payload);
 		} else if (e.data.type === 'MESSAGE') {
 			addToConsole(e.data.payload);
+			addToWebSocketOutput(e.data.payload);
 		} else if (e.data.type === 'UCI') {
-			if (e.data.payload.startsWith('id name ')) {
-				externalEngineName = e.data.payload.substring(8);
+			if (e.data.payload.startsWith('bestmove')) {
+				externalEngineWorker.postMessage({ type: 'UNLOCK' });
+				externalEngineWorker.postMessage({ type: 'UNSUB' })
+				const bestMove = e.data.payload.split(' ')[1];
+				if (bestMove !== '(none)') {
+					processMove(bestMove);
+				}
+				addToWebSocketOutput('Engine has sent move');
+				addToEngineOutput('bestmove: ' + bestMove);
+			} else {
+				addToEngineOutput(e.data.payload);
 			}
+		} else if (e.data.type === 'ENGINE') {
+			externalEngineName = e.data.payload;
+			addToWebSocketOutput('Connected to ' + externalEngineName);
+		} else if (e.data.type === 'NEEDAUTH') {
+			externalEngineWorker.postMessage({ type: 'AUTH', payload: config.externalEnginePasskey.value });
+			addToWebSocketOutput('Attempting to authenticate with passkey ' + config.externalEnginePasskey.value);
 		}
 	}
 
@@ -990,6 +1088,7 @@
 	}
 
 	let lastEngineMoveCalcStartTime = performance.now();
+	let engineMoveNeedsToBeCalculated = false;
 
 	/**
 	 * @description Calculates a move based on the engine selected in the config.
@@ -1019,8 +1118,13 @@
 		if (config.whichEngine.value === 'betafish') {
 			betafishWorker.postMessage({ type: 'FEN', payload: fen });
 			betafishWorker.postMessage({ type: 'GETMOVE' });
+			engineMoveNeedsToBeCalculated = false;
 			return;
 		} else if (config.whichEngine.value === 'external') {
+			if (!externalEngineName) {
+				addToConsole('External engine is not loaded. Please check the config.');
+				return;
+			}
 			if (!config.externalEngineGoCommand.value || !config.externalEngineGoCommand.value.includes('go')) {
 				addToConsole('External engine go command is invalid. Please check the config.');
 				return;
@@ -1030,6 +1134,7 @@
 			externalEngineWorker.postMessage({ type: 'SUB' });
 			externalEngineWorker.postMessage({ type: 'UCI', payload: 'position fen ' + fen });
 			externalEngineWorker.postMessage({ type: 'UCI', payload: config.externalEngineGoCommand.value });
+			engineMoveNeedsToBeCalculated = false;
 			return;
 		} else if (config.whichEngine.value === 'random') {
 			const legalMoves = getAllLegalMoves(fen);
@@ -1057,6 +1162,7 @@
 
 		const uciMove = xyToCoordInverted(from[0], from[1]) + xyToCoordInverted(to[0], to[1]);
 
+		engineMoveNeedsToBeCalculated = false;
 		processMove(uciMove);
 	}
 
@@ -1137,12 +1243,20 @@
 	}
 
 	let lastGamePath = '';
+	let lastEngineNameRequestTime = 0;
 
 	/**
 	 * @description The main loop that runs every 100ms.
 	 * @returns {void}
 	 */
 	const updateLoop = () => {
+		if (config.whichEngine.value === 'external') {
+			if (!externalEngineName && performance.now() - lastEngineNameRequestTime > 3000) {
+				externalEngineWorker.postMessage({ type: 'WHATENGINE' });
+				lastEngineNameRequestTime = performance.now();
+			}
+		}
+
 		const board = document.getElementsByTagName('chess-board')[0];
 
 		let fen;
@@ -1165,7 +1279,8 @@
 			renderHanging(fen);
 		}
 
-		if (!config.legitMode.value && config.whichEngine.value !== 'none' && fen !== window[namespace].lastFEN) {
+		if (!config.legitMode.value && config.whichEngine.value !== 'none' && (fen !== window[namespace].lastFEN || engineMoveNeedsToBeCalculated)) {
+			engineMoveNeedsToBeCalculated = true;
 			calcEngineMove(fen);
 		}
 
