@@ -55,7 +55,7 @@
 		configDisplayUpdater();
 
 		// Apply thinking time
-		if (configKey === 'betafishThinkingTime') window[namespace].betafishWebWorker.postMessage({ type: 'THINKINGTIME', payload: Number(config.betafishThinkingTime.value) });
+		if (configKey === 'betafishThinkingTime') betafishWorker.postMessage({ type: 'THINKINGTIME', payload: Number(config.betafishThinkingTime.value) });
 
 		// If we are not rendering hanging pieces, and on chess.com, remove all markings.
 		if (!config.renderHanging.value) {
@@ -63,6 +63,20 @@
 			if (board?.game?.markings?.removeAll) {
 				board.game.markings.removeAll();
 			}
+		}
+
+		// Inform user to set external engine path
+		if (configKey === 'whichEngine' && config.whichEngine.value === 'external') {
+			if (!config.externalEngineURL.value) {
+				addToConsole('Please set the path to the external engine in the config.');
+			} else {
+				externalEngineWorker.postMessage({ type: 'INIT', payload: config.externalEngineURL.value });
+			}
+		}
+
+		// Validate external engine path
+		if (configKey === 'externalEngineURL' && config.whichEngine.value === 'external') {
+			externalEngineWorker.postMessage({ type: 'INIT', payload: config.externalEngineURL.value });
 		}
 	}
 
@@ -394,6 +408,7 @@
 				case 'text':
 					elem = document.createElement('input');
 					elem.type = 'text';
+					elem.value = config[k].value;
 					break;
 				case 'dropdown':
 					elem = document.createElement('select');
@@ -488,7 +503,7 @@
 			display: 'Which Engine',
 			helptext: 'Which engine to use',
 			value: 'betafish',
-			options: ['none', 'betafish', 'random', 'cccp'],
+			options: ['none', 'betafish', 'random', 'cccp', 'external'],
 			showOnlyIf: () => !config.legitMode.value
 		},
 		betafishThinkingTime: {
@@ -501,6 +516,30 @@
 			max: 20000,
 			step: 100,
 			showOnlyIf: () => !config.legitMode.value && config.whichEngine.value === 'betafish'
+		},
+		externalEngineURL: {
+			key: namespace + '_externalengineurl',
+			type: 'text',
+			display: 'External Engine URL',
+			helptext: 'The URL of the external engine',
+			value: 'http://localhost:8080',
+			showOnlyIf: () => !config.legitMode.value && config.whichEngine.value === 'external'
+		},
+		externalEngineGoCommand: {
+			key: namespace + '_externalenginegocommand',
+			type: 'text',
+			display: 'External Engine Go Command',
+			helptext: 'The command to send to the external engine to start thinking',
+			value: 'go movetime 1000',
+			showOnlyIf: () => !config.legitMode.value && config.whichEngine.value === 'external'
+		},
+		externalEnginePasskey: {
+			key: namespace + '_externalenginepasskey',
+			type: 'text',
+			display: 'External Engine Passkey',
+			helptext: 'The passkey to send to the external engine to authenticate',
+			value: 'passkey',
+			showOnlyIf: () => !config.legitMode.value && config.whichEngine.value === 'external'
 		},
 		autoMove: {
 			key: namespace + '_automove',
@@ -550,6 +589,143 @@
 	};
 
 	/**
+	 * @description The webworker function for the external engine. Data should be inputted as { type: string, payload: any }. Valid types are: UCI, INIT. The webworker will respond with { type: string, payload: any }. Valid types are: UCI, MESSAGE, DEBUG, ERROR.
+	 */
+	const externalEngineWorkerFunc = () => {
+		const minIntermediaryVersion = 1;
+
+		self.uciQueue = [];
+		self.hasLock = false;
+		self.wsPath = null;
+		self.whatEngine = null;
+		self.intermediaryVersionString = null;
+		self.ws = null;
+		self.closeWs = () => {
+			if (self.ws !== null) {
+				self.ws.close();
+				self.ws = null;
+			}
+		};
+		self.openWs = (url) => {
+			self.closeWs();
+			self.ws = new WebSocket(url);
+			self.ws.onopen = () => {
+				self.postMessage({ type: 'DEBUG', payload: 'Connected to engine intermediary' });
+				self.send('whoareyou');
+				self.send('isready');
+			};
+			self.ws.onclose = () => {
+				self.postMessage({ type: 'DEBUG', payload: 'Disconnected from engine' });
+				self.intermediaryVersionString = null;
+			};
+			self.ws.onerror = (e) => {
+				self.postMessage({ type: 'ERROR', payload: 'Error with engine: ', err: e });
+			};
+			self.ws.onmessage = (e) => {
+				const data = e.data;
+				if (data.startsWith('iam ')) {
+					response = data.substring(4);
+					self.intermediaryVersionString = response;
+					self.postMessage({ type: 'MESSAGE', payload: 'Connected to engine intermediary version ' + response });
+					let parts = response.split('v');
+					console.log(response)
+					if (!parts[1] || parseInt(parts[1]) < minIntermediaryVersion) {
+						self.postMessage({ type: 'ERROR', payload: 'Engine intermediary version is too old or did not provide a valid version string. Please update it.' });
+						self.closeWs();
+					}
+				} else if (data.startsWith('auth')) {
+					if (data === 'authok') {
+						self.postMessage({ type: 'MESSAGE', payload: 'Engine authentication successful' });
+					} else {
+						self.postMessage({ type: 'ERROR', payload: 'Engine authentication failed' });
+					}
+				} else if (data.startsWith('sub')) {
+					if (data === 'subok') {
+						self.postMessage({ type: 'DEBUG', payload: 'Engine subscription successful' });
+					} else {
+						self.postMessage({ type: 'ERROR', payload: 'Engine subscription failed' });
+					}
+				} else if (data.startsWith('unsub')) {
+					if (data === 'unsubok') {
+						self.postMessage({ type: 'DEBUG', payload: 'Engine unsubscription successful' });
+					} else {
+						self.postMessage({ type: 'ERROR', payload: 'Engine unsubscription failed' });
+					}
+				} else if (data.startsWith('lock')) {
+					if (data === 'lockok') {
+						self.postMessage({ type: 'DEBUG', payload: 'Engine lock successful' });
+						self.hasLock = true;
+						while (self.uciQueue.length > 0) {
+							self.send(self.uciQueue.shift());
+						}
+					} else {
+						self.postMessage({ type: 'ERROR', payload: 'Engine lock failed' });
+					}
+				} else if (data.startsWith('unlock')) {
+					if (data === 'unlockok') {
+						self.postMessage({ type: 'DEBUG', payload: 'Engine unlock successful' });
+						self.hasLock = false;
+					} else {
+						self.postMessage({ type: 'ERROR', payload: 'Engine unlock failed' });
+					}
+				} else {
+					self.postMessage({ type: 'UCI', payload: data });
+				}
+			};
+		};
+		self.send = (data) => {
+			if (self.ws === null) return self.postMessage({ type: 'ERROR', payload: 'No connection to engine', err: null });
+			self.ws.send(data);
+		};
+		self.addEventListener('message', e => {
+			if (e.data.type === 'UCI') {
+				if (!e.data.payload) return self.postMessage({ type: 'ERROR', payload: 'No UCI command provided' });
+				if (!self.ws) return self.postMessage({ type: 'ERROR', payload: 'No connection to engine' });
+				if (self.hasLock) {
+					self.send(e.data.payload);
+				} else {
+					self.uciQueue.push(e.data.payload);
+				}
+			} else if (e.data.type === 'INIT') {
+				if (!e.data.payload) return self.postMessage({ type: 'ERROR', payload: 'No URL provided' });
+				self.openWs(e.data.payload);
+				self.wsPath = e.data.payload;
+			} else if (e.data.type === 'AUTH') {
+				if (!e.data.payload) return self.postMessage({ type: 'ERROR', payload: 'No auth provided' });
+				self.send('auth ' + e.data.payload);
+			} else if (e.data.type === 'SUB') {
+				self.send('sub');
+			} else if (e.data.type === 'UNSUB') {
+				self.send('unsub');
+			} else if (e.data.type === 'LOCK') {
+				self.send('lock');
+			} else if (e.data.type === 'UNLOCK') {
+				self.send('unlock');
+			}
+		});
+	}
+
+	const externalEngineWorkerBlob = new Blob([`(${externalEngineWorkerFunc.toString()})();`], { type: 'application/javascript' });
+	const externalEngineWorkerURL = URL.createObjectURL(externalEngineWorkerBlob);
+	const externalEngineWorker = new Worker(externalEngineWorkerURL);
+
+	let externalEngineName = null;
+
+	externalEngineWorker.onmessage = (e) => {
+		if (e.data.type === 'DEBUG') {
+			console.log(e.data.payload);
+		} else if (e.data.type === 'ERROR') {
+			console.error(e.data.payload, e.data.err);
+		} else if (e.data.type === 'MESSAGE') {
+			addToConsole(e.data.payload);
+		} else if (e.data.type === 'UCI') {
+			if (e.data.payload.startsWith('id name ')) {
+				externalEngineName = e.data.payload.substring(8);
+			}
+		}
+	}
+
+	/**
 	 * @description The webworker function for the betafish engine.  Data should be inputted as { type: string, payload: any }. Valid types are: FEN, GETMOVE, THINKINGTIME. The payload for FEN should be a FEN string. The payload for GETMOVE should be null. The payload for THINKINGTIME should be a number. The webworker will respond with { type: string, payload: any }. Valid types are: MOVE, MESSAGE, DEBUG, ERROR.
 	 * @returns {void}
 	 */
@@ -586,7 +762,7 @@
 	// Hacky way of loading a webworker from a function. Also prepends the betafish engine to the webworker.
 	const betafishWorkerBlob = new Blob([`const betafishEngine=${betafishEngine.toString()};(${betafishWebWorkerFunc.toString()})();`], { type: 'application/javascript' });
 	const betafishWorkerURL = URL.createObjectURL(betafishWorkerBlob);
-	window[namespace].betafishWebWorker = new Worker(betafishWorkerURL);
+	const betafishWorker = new Worker(betafishWorkerURL);
 
 	const betafishPieces = { EMPTY: 0, wP: 1, wN: 2, wB: 3, wR: 4, wQ: 5, wK: 6, bP: 7, bN: 8, bB: 9, bR: 10, bQ: 11, bK: 12 };
 
@@ -594,7 +770,7 @@
 	 * @description The listener for the betafish webworker. Data should be inputted as { type: string, payload: any }. Valid types are: 'DEBUG', 'ERROR', 'MESSAGE', 'MOVE'.
 	 * @param {MessageEvent} e The message event.
 	 */
-	window[namespace].betafishWebWorker.onmessage = e => {
+	betafishWorker.onmessage = e => {
 		if (e.data.type === 'DEBUG') {
 			console.log(e.data.payload);
 		} else if (e.data.type === 'ERROR') {
@@ -634,7 +810,10 @@
 		createMainWindow();
 		addToConsole(`Loaded! This is version ${GM_info.script.version}`);
 		addToConsole(`Github: https://github.com/0mlml/chesshook`);
-		if (config.renderWindow !== 'true') console.log('Chesshook has initialized in the background. To open the window, use the hotkey alt+k')
+		if (config.renderWindow !== 'true') console.log('Chesshook has initialized in the background. To open the window, use the hotkey alt+k');
+		if (config.externalEngineURL.value && config.whichEngine.value === 'external') {
+			externalEngineWorker.postMessage({ type: 'INIT', payload: config.externalEngineURL.value });
+		}
 	}
 
 	// Last FEN and position. Mostly for debug.
@@ -810,7 +989,7 @@
 		if (pushMoves.length > 0) return pushMoves[0];
 	}
 
-	window[namespace].lastEngineMoveCalcStartTime = performance.now();
+	let lastEngineMoveCalcStartTime = performance.now();
 
 	/**
 	 * @description Calculates a move based on the engine selected in the config.
@@ -832,14 +1011,25 @@
 
 		addToConsole(`Calculating move based on engine: ${config.whichEngine.value}...`);
 		const fullMoveNumber = parseInt(fen.split(' ')[5]);
-		if (fullMoveNumber < 6) window[namespace].lastEngineMoveCalcStartTime = performance.now() - 5000;
-		else window[namespace].lastEngineMoveCalcStartTime = performance.now();
+		if (fullMoveNumber < 6) lastEngineMoveCalcStartTime = performance.now() - 5000;
+		else lastEngineMoveCalcStartTime = performance.now();
 
 		let from, to;
 
 		if (config.whichEngine.value === 'betafish') {
-			window[namespace].betafishWebWorker.postMessage({ type: 'FEN', payload: fen });
-			window[namespace].betafishWebWorker.postMessage({ type: 'GETMOVE' });
+			betafishWorker.postMessage({ type: 'FEN', payload: fen });
+			betafishWorker.postMessage({ type: 'GETMOVE' });
+			return;
+		} else if (config.whichEngine.value === 'external') {
+			if (!config.externalEngineGoCommand.value || !config.externalEngineGoCommand.value.includes('go')) {
+				addToConsole('External engine go command is invalid. Please check the config.');
+				return;
+			}
+			addToConsole('External engine is: ' + externalEngineName);
+			externalEngineWorker.postMessage({ type: 'LOCK' });
+			externalEngineWorker.postMessage({ type: 'SUB' });
+			externalEngineWorker.postMessage({ type: 'UCI', payload: 'position fen ' + fen });
+			externalEngineWorker.postMessage({ type: 'UCI', payload: config.externalEngineGoCommand.value });
 			return;
 		} else if (config.whichEngine.value === 'random') {
 			const legalMoves = getAllLegalMoves(fen);
@@ -911,7 +1101,7 @@
 				board.game.move(uciMove);
 			} else {
 				const moveFinishTime = performance.now();
-				const existingDelay = moveFinishTime - window[namespace].lastEngineMoveCalcStartTime;
+				const existingDelay = moveFinishTime - lastEngineMoveCalcStartTime;
 				const targetTime = Math.floor(Math.random() * (config.autoMoveMaxRandomDelay.value - config.autoMoveMinRandomDelay.value)) + config.autoMoveMinRandomDelay.value;
 				(async _ => {
 					await resolveAfterMs(targetTime - existingDelay);
