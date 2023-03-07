@@ -3,7 +3,7 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require		https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     1.2.0
+// @version     1.2.1
 // @author      0mlml
 // @description QOL
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -743,6 +743,7 @@
 				self.wsPath = e.data.payload;
 			} else if (e.data.type === 'AUTH') {
 				if (!e.data.payload) return self.postMessage({ type: 'ERROR', payload: 'No auth provided' });
+				self.enginePassKey = e.data.payload;
 				self.send('auth ' + e.data.payload);
 			} else if (e.data.type === 'SUB') {
 				self.send('sub');
