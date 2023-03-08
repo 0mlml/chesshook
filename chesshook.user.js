@@ -3,7 +3,7 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require		https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     1.3.0
+// @version     1.3.1
 // @author      0mlml
 // @description QOL
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -776,6 +776,12 @@
 				self.send('sub');
 				self.send('position fen ' + e.data.payload.fen);
 				self.send(e.data.payload.go);
+			} else if (e.data.type === 'STOPIFLOCK') {
+				if (self.hasLock) {
+					self.send('stop');
+					self.send('unsub');
+					self.send('unlock');
+				}
 			}
 		});
 	}
@@ -813,7 +819,7 @@
 				if (depth !== 'info') {
 					lines[0] = 'depth ' + depth;
 				}
-				if (score.startsWith('info')) {
+				if (!score.startsWith('info')) {
 					lines[1] = 'score ' + score;
 				}
 				if (time !== 'info') {
@@ -1306,6 +1312,9 @@
 
 		let fen;
 		if (board?.game?.getFEN) fen = board.game.getFEN();
+		if (board?.game?.getPositionInfo()?.gameOver && board.game.getPlayingAs() === (config.playingAs.value === 'white' ? 1 : 2) && config.playingAs.value !== 'both') {
+			externalEngineWorker.postMessage({ type: 'STOPIFLOCK' }); // stop the engine if we are waiting for it
+		}
 		if (config.autoQueue.value && board?.game?.getPositionInfo()?.gameOver && lastGamePath !== document.location.pathname) {
 			try {
 				document.querySelector('div.tabs-tab[data-tab=newGame]').click();
