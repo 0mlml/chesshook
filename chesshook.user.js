@@ -3,7 +3,7 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require		https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     1.2.1
+// @version     1.3.0
 // @author      0mlml
 // @description QOL
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -561,13 +561,21 @@
 			value: 'http://localhost:8080',
 			showOnlyIf: () => !config.legitMode.value && config.whichEngine.value === 'external'
 		},
+		externalEngineAutoGoCommand: {
+			key: namespace + '_externalengineautogocommand',
+			type: 'checkbox',
+			display: 'External Engine Auto Go Command',
+			helptext: 'Automatically determine the go command based on the time left in the game',
+			value: true,
+			showOnlyIf: () => !config.legitMode.value && config.whichEngine.value === 'external'
+		},
 		externalEngineGoCommand: {
 			key: namespace + '_externalenginegocommand',
 			type: 'text',
 			display: 'External Engine Go Command',
 			helptext: 'The command to send to the external engine to start thinking',
 			value: 'go movetime 1000',
-			showOnlyIf: () => !config.legitMode.value && config.whichEngine.value === 'external'
+			showOnlyIf: () => !config.legitMode.value && config.whichEngine.value === 'external' && !config.externalEngineAutoGoCommand.value
 		},
 		externalEnginePasskey: {
 			key: namespace + '_externalenginepasskey',
@@ -718,6 +726,11 @@
 					self.whichEngine = data.split(' ')[1];
 					self.postMessage({ type: 'DEBUG', payload: 'Connected to engine ' + self.whichEngine });
 					self.postMessage({ type: 'ENGINE', payload: self.whichEngine });
+				} else if (data.startsWith('bestmove')) {
+					const bestMove = data.split(' ')[1];
+					self.postMessage({ type: 'BESTMOVE', payload: bestMove });
+					self.send('unsub');
+					self.send('unlock');
 				} else {
 					self.postMessage({ type: 'UCI', payload: data });
 				}
@@ -756,6 +769,13 @@
 				self.send('unlock');
 			} else if (e.data.type === 'WHATENGINE') {
 				self.send('whatengine');
+			} else if (e.data.type === 'GETMOVE') {
+				if (!e.data.payload?.fen) return self.postMessage({ type: 'ERROR', payload: 'No FEN provided' });
+				if (!e.data.payload?.go) return self.postMessage({ type: 'ERROR', payload: 'No go command provided' });
+				self.send('lock');
+				self.send('sub');
+				self.send('position fen ' + e.data.payload.fen);
+				self.send(e.data.payload.go);
 			}
 		});
 	}
@@ -782,13 +802,27 @@
 			}
 		}
 
-		const addToEngineOutput = (line) => {
+		const updateEngineTextarea = (infoLine) => {
 			if (engineOutputTextArea) {
 				const lines = engineOutputTextArea.value.split('\n');
-				lines.push(line);
-				if (lines.length > maxlines) {
-					lines.shift();
+				const infoParts = infoLine.split(' ');
+				const depth = infoParts[infoParts.indexOf('depth') + 1];
+				const score = infoParts[infoParts.indexOf('score') + 1] + ' ' + infoParts[infoParts.indexOf('score') + 2];
+				const time = infoParts[infoParts.indexOf('time') + 1];
+				const bestLine = infoParts.slice(infoParts.indexOf('pv') + 1).join(' ');
+				if (depth !== 'info') {
+					lines[0] = 'depth ' + depth;
 				}
+				if (score.startsWith('info')) {
+					lines[1] = 'score ' + score;
+				}
+				if (time !== 'info') {
+					lines[2] = 'time ' + time;
+				}
+				if (!bestLine.startsWith('info')) {
+					lines[3] = 'best line ' + bestLine;
+				}
+
 				engineOutputTextArea.value = lines.join('\n');
 			}
 		}
@@ -803,24 +837,15 @@
 			addToConsole(e.data.payload);
 			addToWebSocketOutput(e.data.payload);
 		} else if (e.data.type === 'UCI') {
-			if (e.data.payload.startsWith('bestmove')) {
-				externalEngineWorker.postMessage({ type: 'UNLOCK' });
-				externalEngineWorker.postMessage({ type: 'UNSUB' })
-				const bestMove = e.data.payload.split(' ')[1];
-				if (bestMove !== '(none)') {
-					processMove(bestMove);
-				}
-				addToWebSocketOutput('Engine has sent move');
-				addToEngineOutput('bestmove: ' + bestMove);
-			} else {
-				addToEngineOutput(e.data.payload);
-			}
+			updateEngineTextarea(e.data.payload);
 		} else if (e.data.type === 'ENGINE') {
 			externalEngineName = e.data.payload;
 			addToWebSocketOutput('Connected to ' + externalEngineName);
 		} else if (e.data.type === 'NEEDAUTH') {
 			externalEngineWorker.postMessage({ type: 'AUTH', payload: config.externalEnginePasskey.value });
 			addToWebSocketOutput('Attempting to authenticate with passkey ' + config.externalEnginePasskey.value);
+		} else if (e.data.type === 'BESTMOVE') {
+			processMove(e.data.payload);
 		}
 	}
 
@@ -1099,8 +1124,8 @@
 	const calcEngineMove = (fen) => {
 		const toMove = fen.split(' ')[1];
 		let playingAs = config.playingAs.value;
+		const board = document.getElementsByTagName('chess-board')[0];
 		if (playingAs === 'auto') {
-			const board = document.getElementsByTagName('chess-board')[0];
 			if (board?.game?.getPlayingAs) {
 				playingAs = board.game.getPlayingAs() === 1 ? 'white' : board.game.getPlayingAs() === 2 ? 'black' : 'both';
 			} else {
@@ -1126,15 +1151,34 @@
 				addToConsole('External engine is not loaded. Please check the config.');
 				return;
 			}
-			if (!config.externalEngineGoCommand.value || !config.externalEngineGoCommand.value.includes('go')) {
+			let goCommand = config.externalEngineGoCommand.value;
+			if (config.externalEngineAutoGoCommand.value && (!goCommand || !goCommand.includes('go'))) {
 				addToConsole('External engine go command is invalid. Please check the config.');
 				return;
+			} else {
+				goCommand = 'go';
+				if (board?.game?.timeControl && board.game.timeControl.get() && board.game.timestamps.get) {
+					const increment = board.game.timeControl.get().increment;
+					const baseTime = board.game.timeControl.get().baseTime;
+					let whiteTime = baseTime
+					let blackTime = baseTime;
+					const timestamps = board.game.timestamps.get();
+					for (let i in timestamps) {
+						if (i % 2 === 0) {
+							whiteTime -= timestamps[i] * 100;
+							whiteTime += increment;
+						} else {
+							blackTime -= timestamps[i] * 100;
+							blackTime += increment;
+						}
+					}
+					goCommand += ` wtime ${whiteTime} btime ${blackTime} winc ${increment} binc ${increment}`;
+				} else {
+					goCommand += ' depth 22';
+				}
 			}
 			addToConsole('External engine is: ' + externalEngineName);
-			externalEngineWorker.postMessage({ type: 'LOCK' });
-			externalEngineWorker.postMessage({ type: 'SUB' });
-			externalEngineWorker.postMessage({ type: 'UCI', payload: 'position fen ' + fen });
-			externalEngineWorker.postMessage({ type: 'UCI', payload: config.externalEngineGoCommand.value });
+			externalEngineWorker.postMessage({ type: 'GETMOVE', payload: { fen: fen, go: goCommand } });
 			engineMoveNeedsToBeCalculated = false;
 			return;
 		} else if (config.whichEngine.value === 'random') {
