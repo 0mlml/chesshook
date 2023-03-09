@@ -369,6 +369,15 @@
 		});
 		controlPanelViewportDiv.appendChild(requestBoardUpdateButton);
 
+		const requestEngineStopButton = document.createElement('button');
+		requestEngineStopButton.id = namespace + '_requestenginestop';
+		requestEngineStopButton.innerText = 'Request Engine Stop';
+		requestEngineStopButton.addEventListener('click', e => {
+			e.preventDefault();
+			externalEngineWorker.postMessage({ type: 'STOPIFLOCK' });
+		});
+		controlPanelViewportDiv.appendChild(requestEngineStopButton);
+
 		const exploitsViewportDiv = document.createElement('div');
 		exploitsViewportDiv.id = namespace + '_exploitsvp';
 		viewportContainerDiv.appendChild(exploitsViewportDiv);
