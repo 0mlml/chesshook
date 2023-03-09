@@ -3,7 +3,7 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require		https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     1.3.1
+// @version     1.3.2
 // @author      0mlml
 // @description QOL
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -624,6 +624,14 @@
 			step: 100,
 			showOnlyIf: () => !config.legitMode.value && config.autoMove.value
 		},
+		autoMoveBypasser: {
+			key: namespace + '_automovebypasser',
+			type: 'checkbox',
+			display: 'Auto Move Bypasser',
+			helptext: 'Potentially bannable. Tries to bypass the automove detection by holding the piece.',
+			value: false,
+			showOnlyIf: () => !config.legitMode.value && config.autoMove.value
+		},
 		renderWindow: {
 			key: namespace + '_renderwindow',
 			type: 'hidden',
@@ -1040,6 +1048,17 @@
 	}
 
 	/**
+	 * @description Linearly interpolates between two values.
+	 * @param {Number} a 
+	 * @param {Number} b 
+	 * @param {Number} t 
+	 * @returns {Number} The interpolated value.
+	 */
+	const lerp = (a, b, t) => {
+		return a + (b - a) * t;
+	}
+
+	/**
 	 * @description Renders hanging pieces on the board for chess.com.
 	 * @param {String} fen The FEN of the position.
 	 * @param {{piece: String, isProtected: boolean, protectedBy: String[], isThreatened: boolean, threatenedBy: String[]}[][]} position The position object.
@@ -1192,6 +1211,7 @@
 					goCommand += ' depth 22';
 				}
 			}
+			externalEngineWorker.postMessage({ type: 'STOPIFLOCK' });
 			addToConsole('External engine is: ' + externalEngineName);
 			externalEngineWorker.postMessage({ type: 'GETMOVE', payload: { fen: fen, go: goCommand } });
 			engineMoveNeedsToBeCalculated = false;
@@ -1270,7 +1290,7 @@
 				const existingDelay = moveFinishTime - lastEngineMoveCalcStartTime;
 				const targetTime = Math.floor(Math.random() * (config.autoMoveMaxRandomDelay.value - config.autoMoveMinRandomDelay.value)) + config.autoMoveMinRandomDelay.value;
 				(async _ => {
-					await resolveAfterMs(targetTime - existingDelay);
+					await resolveAfterMs(targetTime - (existingDelay));
 					if (uciMove.length > 4) {
 						board.game.move({
 							from: uciMove.substring(0, 2),
@@ -1282,20 +1302,70 @@
 					} else {
 						const fromPos = getSquarePosition(uciMove.substring(0, 2));
 						const toPos = getSquarePosition(uciMove.substring(2, 4));
-						board.dispatchEvent(new PointerEvent('pointerdown', {
+
+						const pointerDown = (x, y) => board.dispatchEvent(new PointerEvent('pointerdown', {
 							bubbles: true,
 							cancelable: true,
 							view: window,
-							clientX: fromPos.x,
-							clientY: fromPos.y,
+							clientX: x,
+							clientY: y,
 						}));
-						board.dispatchEvent(new PointerEvent('pointerup', {
+
+						const pointerUp = (x, y) => board.dispatchEvent(new PointerEvent('pointerup', {
 							bubbles: true,
 							cancelable: true,
 							view: window,
-							clientX: toPos.x,
-							clientY: toPos.y,
+							clientX: x,
+							clientY: y,
 						}));
+
+						const pointerMove = (x, y) => board.dispatchEvent(new PointerEvent('pointermove', {
+							bubbles: true,
+							cancelable: true,
+							view: window,
+							clientX: x,
+							clientY: y,
+						}));
+
+						if (config.autoMoveBypasser.value) {
+							// randomly dash across board to bypass anticheat
+							const { top, left, width } = board.getBoundingClientRect();
+							const pointsCount = Math.floor(Math.random() * (1500 - 100)) + 1000;
+							const actualPiecePickupIndex = Math.floor(Math.random() * pointsCount);
+
+							const holdingPieceHomeCoordinates = null;
+
+							for (let i = 0; i < pointsCount; i++) {
+								if (Math.random() < 0.05 && i < actualPiecePickupIndex) { // 5% chance to try and pick up a piece at a random square
+									const randomSquare = xyToCoord(Math.floor(Math.random() * 8), Math.floor(Math.random() * 8));
+									const holdingPieceHomeCoordinates = getSquarePosition(randomSquare);
+									pointerDown(holdingPieceHomeCoordinates.x, holdingPieceHomeCoordinates.y);
+								} else if (holdingPieceHomeCoordinates && Math.random() < 0.1) { // 10% chance to drop piece at home square, if we have one
+									pointerMove(holdingPieceHomeCoordinates.x, holdingPieceHomeCoordinates.y);
+									pointerUp(holdingPieceHomeCoordinates.x, holdingPieceHomeCoordinates.y);
+									holdingPieceHomeCoordinates = null;
+								} else if (i === actualPiecePickupIndex) { // pick up actual piece, if it is time to
+									if (holdingPieceHomeCoordinates) { // drop piece at home square, if we have one
+										pointerMove(holdingPieceHomeCoordinates.x, holdingPieceHomeCoordinates.y);
+										pointerUp(holdingPieceHomeCoordinates.x, holdingPieceHomeCoordinates.y);
+										holdingPieceHomeCoordinates = null;
+									}
+									pointerMove(fromPos.x, fromPos.y);
+									pointerDown(fromPos.x, fromPos.y);
+								} else { // dart around randomly
+									const x = Math.floor(Math.random() * width) + left;
+									const y = Math.floor(Math.random() * width) + top;
+									pointerMove(x, y);
+									console.log(x, y);
+								}
+							}
+							pointerUp(toPos.x, toPos.y);
+
+							console.log(board.game.cheatDetection.get()); // check if we got caught
+						} else {
+							pointerDown(fromPos.x, fromPos.y);
+							pointerUp(toPos.x, toPos.y);
+						}
 					}
 				})();
 			}

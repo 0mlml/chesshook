@@ -1,0 +1,150 @@
+function nr(e) {
+    const t = {}, n = e.mouseCoords.length / 2;
+    return e.mouseCoords.some(r => {
+        if (!r) return !1; const i = `${r.x}-${r.y}`;
+        return typeof t[i] > "u" ? t[i] = 0 : t[i] += 1, t[i] >= n
+    }, {})
+}
+
+function didUseCheatMouse(event) {
+    const coords = {};
+    const halfLength = event.mouseCoords.length / 2;
+    return event.mouseCoords.some(point => {
+        if (!point) return false;
+        const key = `${point.x}-${point.y}`;
+        if (typeof coords[key] == "undefined") { // check if we have seen the key before
+            coords[key] = 0; // set it to zero, we have seen it now
+        } else { // else, we have seen it before
+            coords[key] += 1; // increment the value
+        }
+
+        const hasEnoughMovement = coords[key] >= halfLength; // check if we have seen it more than half the times
+        return hasEnoughMovement; // return if we have seen it more than half the times
+    }, {})
+}
+
+const chessGame = (0, gameEngine.createGame)({
+    data: state(),
+    initialState: "idle",
+    states: {
+        changedPiece: {
+            load: handleLoad,
+            move: () => {
+                const {
+                    chosenPiece: _,
+                    tentativeMouseCoords,
+                    moveHoldTimeStart
+                } = chessGame.getData();
+                const newMouseCoords = [...chessGame.getData().mouseCoords, tentativeMouseCoords];
+                const newMoveHoldTimes = [...chessGame.getData().moveHoldTimes, Date.now() - moveHoldTimeStart];
+                return {
+                    data: {
+                        chosenPiece: undefined,
+                        didChangePieces: true,
+                        mouseCoords: newMouseCoords,
+                        moveHoldTimes: newMoveHoldTimes
+                    },
+                    nextState: "idle"
+                };
+            }
+        },
+        chosenPiece: {
+            choosePiece: ({ tentativeMouseCoords: newTentativeMouseCoords, moveHoldTimeStart: newMoveHoldTimeStart }) => {
+                return {
+                    data: {
+                        moveHoldTimeStart: newMoveHoldTimeStart,
+                        tentativeMouseCoords: newTentativeMouseCoords
+                    },
+                    nextState: "changedPiece"
+                };
+            },
+            load: handleLoad,
+            move: () => {
+                const {
+                    tentativeMouseCoords,
+                    moveHoldTimeStart
+                } = chessGame.getData();
+                const newMouseCoords = [...chessGame.getData().mouseCoords, tentativeMouseCoords];
+                const newMoveHoldTimes = [...chessGame.getData().moveHoldTimes, Date.now() - moveHoldTimeStart];
+                return {
+                    data: {
+                        chosenPiece: undefined,
+                        mouseCoords: newMouseCoords,
+                        moveHoldTimes: newMoveHoldTimes
+                    },
+                    nextState: "idle"
+                };
+            }
+        },
+        idle: {
+            choosePiece: ({ chosenPiece: newChosenPiece, moveHoldTimeStart: newMoveHoldTimeStart, tentativeMouseCoords: newTentativeMouseCoords }) => {
+                return {
+                    data: {
+                        chosenPiece: newChosenPiece,
+                        didChangePieces: false,
+                        moveHoldTimeStart: newMoveHoldTimeStart,
+                        tentativeMouseCoords: newTentativeMouseCoords
+                    },
+                    nextState: "chosenPiece"
+                };
+            },
+            load: handleLoad
+        }
+    }
+});
+
+function Plugin() {
+    return {
+        api: () => EventRunner({ machine: stateMachine }),
+        match: [
+            {
+                condition: isPointerEvent([UserEvents.PointerdownLeft, UserEvents.Pointerup]),
+                handler: handlePointerEvent,
+            },
+            {
+                condition: isAPIEvent(APIEvents.Load),
+                handler: handleLoadEvent,
+            },
+            {
+                condition: isAPIEvent(APIEvents.Move),
+                handler: handleMoveEvent,
+            },
+        ],
+        name: PluginName,
+    };
+
+    function handlePointerEvent(event, context) {
+        const { mode, state } = context;
+        if (state.get(MachineState) === States.PromotionAreaShowing || !event.data || !mode.isAllowedToMove()) {
+            return;
+        }
+        const selectedPiece = state.get(SelectedPiece) || state.get(DraggingPiece);
+        if (selectedPiece && selectedPiece !== stateMachine.getData().chosenPiece) {
+            if (!event.data.coordsInsideSquare) {
+                context.run({
+                    type: Events.CheatDetectionError,
+                    data: {
+                        corePiece: selectedPiece,
+                        cheatDetectionPiece: stateMachine.getData().chosenPiece,
+                        eventData: event.data,
+                        variant: context.api.getVariant(),
+                    },
+                });
+                return;
+            }
+            stateMachine.transition("choosePiece", {
+                chosenPiece: selectedPiece,
+                moveHoldTimeStart: Date.now(),
+                tentativeMouseCoords: event.data.coordsInsideSquare,
+            });
+        }
+    }
+
+    function handleLoadEvent() {
+        stateMachine.transition("load");
+    }
+
+    function handleMoveEvent() {
+        stateMachine.transition("move");
+    }
+}
