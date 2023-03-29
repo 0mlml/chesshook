@@ -3,7 +3,7 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require		https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     1.3.1
+// @version     1.3.2
 // @author      0mlml
 // @description QOL
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -1091,7 +1091,16 @@
 	 * @returns {Number} The distance from the end of the board.
 	 */
 	const distanceToEnd = (yCoord, isWhite) => {
-		return isWhite ? 7 - yCoord : yCoord;
+		return !isWhite ? 7 - yCoord : yCoord;
+	}
+
+	/**
+	 * @description Gets the distance from the center of the board.
+	 * @param {Number} xCoord The x coordinate.
+	 * @returns {Number} The distance from the center of the board.
+	 */
+	const distanceToCenter = (xCoord) => {
+		return Math.abs(3.5 - xCoord);
 	}
 
 	/**
@@ -1107,25 +1116,49 @@
 	/**
 	 * @description The Checkmate, Check, Capture, Push engine.
 	 * @param {String} fen The FEN of the position.
-	 * @returns
+	 * @returns {[Number, Number, Number, Number, String]}
 	 */
 	const cccpEngine = (fen) => {
 		const position = parsePositionPieceRelations(fen);
 		const isWhite = fen.split(' ')[1] === 'w';
 
 		const checkMateMoves = getCheckmateMoves(fen);
-		if (checkMateMoves.length > 0) return checkMateMoves[0];
+		if (checkMateMoves.length > 0) {
+			if (position[checkMateMoves[0][0]][checkMateMoves[0][1]].piece.toLowerCase() === 'p' && (checkMateMoves[0][2] === 0 || checkMateMoves[0][2] === 7)) {
+				checkMateMoves[0][4] = 'q';
+			}
+			return checkMateMoves[0];
+		}
 
 		const legalMoves = getAllLegalMoves(fen);
 
 		const checkMoves = legalMoves.filter(move => isKingInCheckAfterMove(position, move[0], move[1], move[2], move[3], isWhite));
-		if (checkMoves.length > 0) return checkMoves[0];
+		if (checkMoves.length > 0) {
+			if (position[checkMoves[0][0]][checkMoves[0][1]].piece.toLowerCase() === 'p' && (checkMoves[0][2] === 0 || checkMoves[0][2] === 7)) {
+				checkMoves[0][4] = 'q';
+			}
+
+			return checkMoves[0];
+		}
 
 		const captureMoves = legalMoves.filter(move => position[move[2]][move[3]]).sort((a, b) => getPieceValue(position[b[2]][b[3]].piece) - getPieceValue(position[a[2]][a[3]].piece));
-		if (captureMoves.length > 0) return captureMoves[0];
+		if (captureMoves.length > 0) {
+			if (position[captureMoves[0][0]][captureMoves[0][1]].piece.toLowerCase() === 'p' && (captureMoves[0][2] === 0 || captureMoves[0][2] === 7)) {
+				captureMoves[0][4] = 'q';
+			}
+			return captureMoves[0];
+		}
 
-		const pushMoves = legalMoves.sort((a, b) => distanceToEnd(b[3], isWhite) - distanceToEnd(a[3], isWhite));
-		if (pushMoves.length > 0) return pushMoves[0];
+		let pushMoves = legalMoves.sort((a, b) => distanceToEnd(a[2], isWhite) - distanceToEnd(b[2], isWhite));
+		if (pushMoves.length > 0) {
+			const farthestDistance = distanceToEnd(pushMoves[0][2], isWhite);
+			pushMoves = pushMoves.filter(move => distanceToEnd(move[2], isWhite) === farthestDistance);
+			pushMoves.sort((a, b) => distanceToCenter(a[3]) - distanceToCenter(b[3]));
+			if (position[pushMoves[0][0]][pushMoves[0][1]].piece.toLowerCase() === 'p' && (pushMoves[0][2] === 0 || pushMoves[0][2] === 7)) {
+				pushMoves[0][4] = 'q';
+			}
+			return pushMoves[0];
+		}
 	}
 
 	let lastEngineMoveCalcStartTime = performance.now();
@@ -1154,7 +1187,7 @@
 		if (fullMoveNumber < 6) lastEngineMoveCalcStartTime = performance.now() - 5000;
 		else lastEngineMoveCalcStartTime = performance.now();
 
-		let from, to;
+		let from, to, promo;
 
 		if (config.whichEngine.value === 'betafish') {
 			betafishWorker.postMessage({ type: 'FEN', payload: fen });
@@ -1167,10 +1200,10 @@
 				return;
 			}
 			let goCommand = config.externalEngineGoCommand.value;
-			if (config.externalEngineAutoGoCommand.value && (!goCommand || !goCommand.includes('go'))) {
+			if (!config.externalEngineAutoGoCommand.value && (!goCommand || !goCommand.includes('go'))) {
 				addToConsole('External engine go command is invalid. Please check the config.');
 				return;
-			} else {
+			} else if (config.externalEngineAutoGoCommand.value) {
 				goCommand = 'go';
 				if (board?.game?.timeControl && board.game.timeControl.get() && board.game.timestamps.get) {
 					const increment = board.game.timeControl.get().increment;
@@ -1215,12 +1248,14 @@
 			from[0] = 7 - from[0];
 			to[0] = 7 - to[0];
 
+			promo = move[4];
+
 			addToConsole(`CCCP computed move for ${toMove === 'w' ? 'white' : 'black'}: ${xyToCoordInverted(from[0], from[1])}->${xyToCoordInverted(to[0], to[1])}`);
 		}
 
 		if (!from || !to) return;
 
-		const uciMove = xyToCoordInverted(from[0], from[1]) + xyToCoordInverted(to[0], to[1]);
+		const uciMove = xyToCoordInverted(from[0], from[1]) + xyToCoordInverted(to[0], to[1]) + (promo ? promo : '');
 
 		engineMoveNeedsToBeCalculated = false;
 		processMove(uciMove);
@@ -1355,90 +1390,90 @@
 	/**
 	 * @description Gets all legal moves for a given piece in a given position.
 	 * @param {{piece: String, isProtected: boolean, protectedBy: String[], isThreatened: boolean, threatenedBy: String[]}[][]} position The position.
-	 * @param {Number} x The x coordinate.
-	 * @param {Number} y The y coordinate.
+	 * @param {Number} y The x coordinate.
+	 * @param {Number} x The y coordinate.
 	 * @param {Boolean} isWhite Whether the piece is white.
 	 * @returns {Array} The legal moves.
 	 */
-	const getAllMovesForPiece = (position, x, y, isWhite) => {
+	const getAllMovesForPiece = (position, y, x, isWhite) => {
 		let moves = [];
 
-		if (position[x][y].piece.toUpperCase() === 'P') {
+		if (position[y][x].piece.toUpperCase() === 'P') {
 			// Check for forward move
-			let forwardX = x + (isWhite ? -1 : 1);
-			if (position[forwardX][y] === null) {
-				moves.push([forwardX, y]);
+			let forwardY = y + (isWhite ? -1 : 1);
+			if (forwardY >= 0 && forwardY <= 7 && position[forwardY][x] === null) {
+				moves.push([forwardY, x]);
 
 				// Check for double move from starting rank
-				if ((isWhite && x === 6) || (!isWhite && x === 1)) {
-					let doubleForwardX = forwardX + (isWhite ? -1 : 1);
-					if (position[doubleForwardX][y] === null) {
-						moves.push([doubleForwardX, y]);
+				if ((isWhite && y === 6) || (!isWhite && y === 1)) {
+					let doubleForwardY = forwardY + (isWhite ? -1 : 1);
+					if (position[doubleForwardY][x] === null) {
+						moves.push([doubleForwardY, x]);
 					}
 				}
 			}
 
 			// Check for diagonal capture
-			let leftX = x + (isWhite ? -1 : 1);
-			let leftY = y - 1;
-			if (leftY >= 0 && position[leftX][leftY] !== null) {
-				moves.push([leftX, leftY]);
+			let leftY = y + (isWhite ? -1 : 1);
+			let leftX = x - 1;
+			if (leftY >= 0 && leftY <= 7 && leftX >= 0 && position[leftY][leftX] !== null) {
+				moves.push([leftY, leftX]);
 			}
 
-			let rightX = x + (isWhite ? -1 : 1);
-			let rightY = y + 1;
-			if (rightY < 8 && position[rightX][rightY] !== null) {
-				moves.push([rightX, rightY]);
+			let rightY = y + (isWhite ? -1 : 1);
+			let rightX = x + 1;
+			if (rightY >= 0 && rightY <= 7 && rightX < 8 && position[rightY][rightX] !== null) {
+				moves.push([rightY, rightX]);
 			}
-		} else if (position[x][y].piece.toUpperCase() === 'R') {
+		} else if (position[y][x].piece.toUpperCase() === 'R') {
 			// Check for horizontal moves
-			for (let i = y + 1; i < 8; i++) {
-				if (position[x][i] === null) {
-					moves.push([x, i]);
-				} else {
-					moves.push([x, i]);
-					break;
-				}
-			}
-
-			for (let i = y - 1; i >= 0; i--) {
-				if (position[x][i] === null) {
-					moves.push([x, i]);
-				} else {
-					moves.push([x, i]);
-					break;
-				}
-			}
-
-			// Check for vertical moves
 			for (let i = x + 1; i < 8; i++) {
-				if (position[i][y] === null) {
-					moves.push([i, y]);
+				if (position[y][i] === null) {
+					moves.push([y, i]);
 				} else {
-					moves.push([i, y]);
+					moves.push([y, i]);
 					break;
 				}
 			}
 
 			for (let i = x - 1; i >= 0; i--) {
-				if (position[i][y] === null) {
-					moves.push([i, y]);
+				if (position[y][i] === null) {
+					moves.push([y, i]);
 				} else {
-					moves.push([i, y]);
+					moves.push([y, i]);
 					break;
 				}
 			}
-		} else if (position[x][y].piece.toUpperCase() === 'N') {
+
+			// Check for vertical moves
+			for (let i = y + 1; i < 8; i++) {
+				if (position[i][x] === null) {
+					moves.push([i, x]);
+				} else {
+					moves.push([i, x]);
+					break;
+				}
+			}
+
+			for (let i = y - 1; i >= 0; i--) {
+				if (position[i][x] === null) {
+					moves.push([i, x]);
+				} else {
+					moves.push([i, x]);
+					break;
+				}
+			}
+		} else if (position[y][x].piece.toUpperCase() === 'N') {
 			// Check for L-shaped moves
 			let knightMoves = [
-				[x - 2, y - 1],
-				[x - 2, y + 1],
-				[x - 1, y - 2],
-				[x - 1, y + 2],
-				[x + 1, y - 2],
-				[x + 1, y + 2],
-				[x + 2, y - 1],
-				[x + 2, y + 1],
+				[y - 2, x - 1],
+				[y - 2, x + 1],
+				[y - 1, x - 2],
+				[y - 1, x + 2],
+				[y + 1, x - 2],
+				[y + 1, x + 2],
+				[y + 2, x - 1],
+				[y + 2, x + 1],
 			];
 
 			knightMoves.forEach(move => {
@@ -1446,134 +1481,134 @@
 					moves.push(move);
 				}
 			});
-		} else if (position[x][y].piece.toUpperCase() === 'B') {
+		} else if (position[y][x].piece.toUpperCase() === 'B') {
 			// Check for diagonal moves
 			for (let i = 1; i < 8; i++) {
-				if (x + i > 7 || y + i > 7) break;
-				if (position[x + i][y + i] === null) {
-					moves.push([x + i, y + i]);
+				if (y + i > 7 || x + i > 7) break;
+				if (position[y + i][x + i] === null) {
+					moves.push([y + i, x + i]);
 				} else {
-					moves.push([x + i, y + i]);
+					moves.push([y + i, x + i]);
 					break;
 				}
 			}
 			for (let i = 1; i < 8; i++) {
-				if (x + i > 7 || y - i < 0) break;
-				if (position[x + i][y - i] === null) {
-					moves.push([x + i, y - i]);
+				if (y + i > 7 || x - i < 0) break;
+				if (position[y + i][x - i] === null) {
+					moves.push([y + i, x - i]);
 				} else {
-					moves.push([x + i, y - i]);
+					moves.push([y + i, x - i]);
 					break;
 				}
 			}
 			for (let i = 1; i < 8; i++) {
-				if (x - i < 0 || y + i > 7) break;
-				if (position[x - i][y + i] === null) {
-					moves.push([x - i, y + i]);
+				if (y - i < 0 || x + i > 7) break;
+				if (position[y - i][x + i] === null) {
+					moves.push([y - i, x + i]);
 				} else {
-					moves.push([x - i, y + i]);
+					moves.push([y - i, x + i]);
 					break;
 				}
 			}
 			for (let i = 1; i < 8; i++) {
-				if (x - i < 0 || y - i < 0) break;
-				if (position[x - i][y - i] === null) {
-					moves.push([x - i, y - i]);
+				if (y - i < 0 || x - i < 0) break;
+				if (position[y - i][x - i] === null) {
+					moves.push([y - i, x - i]);
 				} else {
-					moves.push([x - i, y - i]);
+					moves.push([y - i, x - i]);
 					break;
 				}
 			}
-		} else if (position[x][y].piece.toUpperCase() === 'Q') {
+		} else if (position[y][x].piece.toUpperCase() === 'Q') {
 			// Check for horizontal moves
-			for (let i = y + 1; i < 8; i++) {
-				if (position[x][i] === null) {
-					moves.push([x, i]);
-				} else {
-					moves.push([x, i]);
-					break;
-				}
-			}
-
-			for (let i = y - 1; i >= 0; i--) {
-				if (position[x][i] === null) {
-					moves.push([x, i]);
-				} else {
-					moves.push([x, i]);
-					break;
-				}
-			}
-
-			// Check for vertical moves
 			for (let i = x + 1; i < 8; i++) {
-				if (position[i][y] === null) {
-					moves.push([i, y]);
+				if (position[y][i] === null) {
+					moves.push([y, i]);
 				} else {
-					moves.push([i, y]);
+					moves.push([y, i]);
 					break;
 				}
 			}
 
 			for (let i = x - 1; i >= 0; i--) {
-				if (position[i][y] === null) {
-					moves.push([i, y]);
+				if (position[y][i] === null) {
+					moves.push([y, i]);
 				} else {
-					moves.push([i, y]);
+					moves.push([y, i]);
+					break;
+				}
+			}
+
+			// Check for vertical moves
+			for (let i = y + 1; i < 8; i++) {
+				if (position[i][x] === null) {
+					moves.push([i, x]);
+				} else {
+					moves.push([i, x]);
+					break;
+				}
+			}
+
+			for (let i = y - 1; i >= 0; i--) {
+				if (position[i][x] === null) {
+					moves.push([i, x]);
+				} else {
+					moves.push([i, x]);
 					break;
 				}
 			}
 
 			// Check for diagonal moves
 			for (let i = 1; i < 8; i++) {
-				if (x + i > 7 || y + i > 7) break;
-				if (position[x + i][y + i] === null) {
-					moves.push([x + i, y + i]);
+				if (y + i > 7 || x + i > 7) break;
+				if (position[y + i][x + i] === null) {
+					moves.push([y + i, x + i]);
 				} else {
-					moves.push([x + i, y + i]);
+					moves.push([y + i, x + i]);
 					break;
 				}
 			}
 			for (let i = 1; i < 8; i++) {
-				if (x + i > 7 || y - i < 0) break;
-				if (position[x + i][y - i] === null) {
-					moves.push([x + i, y - i]);
+				if (y + i > 7 || x - i < 0) break;
+				if (position[y + i][x - i] === null) {
+					moves.push([y + i, x - i]);
 				} else {
-					moves.push([x + i, y - i]);
+					moves.push([y + i, x - i]);
 					break;
 				}
 			}
 			for (let i = 1; i < 8; i++) {
-				if (x - i < 0 || y + i > 7) break;
-				if (position[x - i][y + i] === null) {
-					moves.push([x - i, y + i]);
+				if (y - i < 0 || x + i > 7) break;
+				if (position[y - i][x + i] === null) {
+					moves.push([y - i, x + i]);
 				} else {
-					moves.push([x - i, y + i]);
+					moves.push([y - i, x + i]);
 					break;
 				}
 			}
 			for (let i = 1; i < 8; i++) {
-				if (x - i < 0 || y - i < 0) break;
-				if (position[x - i][y - i] === null) {
-					moves.push([x - i, y - i]);
+				if (y - i < 0 || x - i < 0) break;
+				if (position[y - i][x - i] === null) {
+					moves.push([y - i, x - i]);
 				} else {
-					moves.push([x - i, y - i]);
+					moves.push([y - i, x - i]);
 					break;
 				}
 			}
-		} else if (position[x][y].piece.toUpperCase() === 'K') {
+		} else if (position[y][x].piece.toUpperCase() === 'K') {
 			// Check for possible moves that are one square away diagonally and horizontally/vertically
 			for (let i = -1; i <= 1; i++) {
 				for (let j = -1; j <= 1; j++) {
 					// Check that move doesn't go out of the board and doesn't stay in the same place
-					if ((x + i) >= 0 && (x + i) < 8 && (y + j) >= 0 && (y + j) < 8 && !(i === 0 && j === 0)) {
-						if (!isKingInCheckAfterMove(position, x, y, x + i, y + j)) {
-							moves.push([x + i, y + j]);
+					if ((y + i) >= 0 && (y + i) < 8 && (x + j) >= 0 && (x + j) < 8 && !(i === 0 && j === 0)) {
+						if (!isKingInCheckAfterMove(position, y, x, y + i, x + j, isWhite)) {
+							moves.push([y + i, x + j]);
 						}
 					}
 				}
 			}
 		} else {
-			addToConsole('Unknown piece type: ' + position[x][y]);
+			addToConsole('Unknown piece type: ' + position[y][x]);
 		}
 
 		return moves;
@@ -1592,12 +1627,14 @@
 
 		for (let i = 0; i < legalMoves.length; i++) {
 			const [startX, startY, endX, endY] = legalMoves[i];
-			const tempPiece = position[endX][endY];
 			position[endX][endY] = position[startX][startY];
 			position[startX][startY] = null;
 			const isCheckmate = isKingInCheckmate(position, !isWhite, 0);
 			position[startX][startY] = position[endX][endY];
 
+			if (isCheckmate) {
+				checkmateMoves.push(legalMoves[i]);
+			}
 		}
 
 		return checkmateMoves;
@@ -1614,13 +1651,13 @@
 
 		const allMoves = getAllLegalMovesFromPosition(position, isWhite);
 		for (let i = 0; i < allMoves.length; i++) {
-			const [startX, startY, endX, endY] = allMoves[i];
-			const tempPiece = position[endX][endY];
-			position[endX][endY] = position[startX][startY];
-			position[startX][startY] = null;
+			const [startY, startX, endY, endX] = allMoves[i];
+			const tempPiece = position[endY][endX];
+			position[endY][endX] = position[startY][startX];
+			position[startY][startX] = null;
 			const isCheckmate = isKingInCheckmate(position, !isWhite, depth + 1);
-			position[startX][startY] = position[endX][endY];
-			position[endX][endY] = tempPiece;
+			position[startY][startX] = position[endY][endX];
+			position[endY][endX] = tempPiece;
 
 			if (!isCheckmate) {
 				return false;
@@ -1633,15 +1670,15 @@
 	const getAllLegalMovesFromPosition = (position, isWhite) => {
 		const legalMoves = [];
 
-		for (let i = 0; i < position.length; i++) {
-			for (let j = 0; j < position[i].length; j++) {
-				const piece = position[i][j];
+		for (let j = 0; j < position.length; j++) {
+			for (let i = 0; i < position[j].length; i++) {
+				const piece = position[j][i];
 				if (piece && piece.piece.toUpperCase() === (isWhite ? 'K' : 'k')) {
-					const moves = getAllMovesForPiece(position, i, j, piece.piece.toUpperCase() === piece.piece);
+					const moves = getAllMovesForPiece(position, j, i, piece.piece.toUpperCase() === piece.piece);
 					moves.forEach(move => {
-						const [x, y] = move;
-						if (isValidMove(position, i, j, x, y, piece.piece.toUpperCase() === piece.piece)) {
-							legalMoves.push([i, j, x, y]);
+						const [y, x] = move;
+						if (isValidMove(position, j, i, y, x, piece.piece.toUpperCase() === piece.piece)) {
+							legalMoves.push([j, i, y, x]);
 						}
 					});
 				}
@@ -1661,16 +1698,16 @@
 		const toMove = fen.split(' ')[1];
 		const legalMoves = [];
 
-		for (let i = 0; i < position.length; i++) {
-			for (let j = 0; j < position[i].length; j++) {
-				const piece = position[i][j];
+		for (let j = 0; j < position.length; j++) {
+			for (let i = 0; i < position[j].length; i++) {
+				const piece = position[j][i];
 				if (piece && piece.piece) {
 					if (!(piece.piece.toUpperCase() === piece.piece === (toMove === 'w'))) continue;
-					const moves = getAllMovesForPiece(position, i, j, piece.piece.toUpperCase() === piece.piece);
+					const moves = getAllMovesForPiece(position, j, i, piece.piece.toUpperCase() === piece.piece);
 					moves.forEach(move => {
-						const [x, y] = move;
-						if (isValidMove(position, i, j, x, y, piece.piece.toUpperCase() === piece.piece)) {
-							legalMoves.push([i, j, x, y]);
+						const [y, x] = move;
+						if (isValidMove(position, j, i, y, x, piece.piece.toUpperCase() === piece.piece)) {
+							legalMoves.push([j, i, y, x]);
 						}
 					});
 				}
@@ -1683,20 +1720,19 @@
 	/**
 	 * @description Returns whether a given move is valid
 	 * @param {{piece: String, isProtected: boolean, protectedBy: String[], isThreatened: boolean, threatenedBy: String[]}[][]} position The position array
-	 * @param {number} startX The starting X position
 	 * @param {number} startY The starting Y position
-	 * @param {number} endX The ending X position
+	 * @param {number} startX The starting X position
 	 * @param {number} endY The ending Y position
+	 * @param {number} endX The ending X position
 	 * @param {boolean} isWhite Whether the piece is white
 	 */
-	const isValidMove = (position, startX, startY, endX, endY, isWhite) => {
-		if (startX === endX && startY === endY) return false; // Can't move to the same position
-		const piece = position[startX][startY];
-		const targetPiece = position[endX][endY];
+	const isValidMove = (position, startY, startX, endY, endX, isWhite) => {
+		if (startY === endY && startX === endX) return false; // Can't move to the same position
+		const targetPiece = position[endY][endX];
 
 		if (targetPiece && isWhite === (targetPiece.piece.toUpperCase() === targetPiece.piece)) return false; // Can't capture same color piece
-		if (!getAllMovesForPiece(position, startX, startY, isWhite).some(([x, y]) => x === endX && y === endY)) return false; // Invalid move for piece
-		if (isKingInCheckAfterMove(position, startX, startY, endX, endY, isWhite)) return false; // Can't move king into check
+		if (!getAllMovesForPiece(position, startY, startX, isWhite).some(([y, x]) => y === endY && x === endX)) return false; // Invalid move for piece
+		if (isKingInCheckAfterMove(position, startY, startX, endY, endX, isWhite)) return false; // Can't move king into check
 
 		return true;
 	}
@@ -1704,21 +1740,21 @@
 	/**
 	 * @description Returns whether a king is in check after a move
 	 * @param {{piece: String, isProtected: boolean, protectedBy: String[], isThreatened: boolean, threatenedBy: String[]}[][]} position The position array
-	 * @param {number} startX The starting X position
 	 * @param {number} startY The starting Y position
-	 * @param {number} endX The ending X position
+	 * @param {number} startX The starting X position
 	 * @param {number} endY The ending Y position
+	 * @param {number} endX The ending X position
 	 * @param {boolean} isWhite Whether the piece is white
 	 * @returns {boolean} Whether the king is in check
 	 */
-	const isKingInCheckAfterMove = (position, startX, startY, endX, endY, isWhite) => {
-		const tempPiece = position[endX][endY];
-		position[endX][endY] = position[startX][startY];
-		position[startX][startY] = null;
+	const isKingInCheckAfterMove = (position, startY, startX, endY, endX, isWhite) => {
+		const tempPiece = position[endY][endX];
+		position[endY][endX] = position[startY][startX];
+		position[startY][startX] = null;
 		const kingPosition = findKing(position, isWhite);
 		const result = isKingInCheck(position, kingPosition[0], kingPosition[1], !isWhite);
-		position[startX][startY] = position[endX][endY];
-		position[endX][endY] = tempPiece;
+		position[startY][startX] = position[endY][endX];
+		position[endY][endX] = tempPiece;
 		return result;
 	}
 
@@ -1726,14 +1762,15 @@
 	 * @description Returns the location of the king
 	 * @param {{piece: String, isProtected: boolean, protectedBy: String[], isThreatened: boolean, threatenedBy: String[]}[][]} position The position array
 	 * @param {boolean} isWhite Whether the piece is white
-	 * @returns {number[]} The location of the king
+	 * @returns {number[]} The location of the king in [Y, X]
 	 */
 	const findKing = (position, isWhite) => {
-		for (let i = 0; i < position.length; i++) {
-			for (let j = 0; j < position[i].length; j++) {
-				const piece = position[i][j];
-				if (piece && piece.piece === (isWhite ? 'K' : 'k')) {
-					return [i, j];
+		for (let y = 0; y < position.length; y++) {
+			for (let x = 0; x < position[y].length; x++) {
+				const piece = position[y][x];
+				if (piece && (piece.piece === (isWhite ? 'K' : 'k'))) {
+					console.log(position[y][x], y, x);
+					return [y, x];
 				}
 			}
 		}
@@ -1742,18 +1779,18 @@
 	/**
 	 * @description Returns whether a king is in check
 	 * @param {{piece: String, isProtected: boolean, protectedBy: String[], isThreatened: boolean, threatenedBy: String[]}[][]} position The position array
-	 * @param {number} x The X position
-	 * @param {number} y The Y position
+	 * @param {number} y The X position
+	 * @param {number} x The Y position
 	 * @param {boolean} isWhite Whether the piece is white
 	 * @returns {boolean} Whether the king is in check
 	 */
-	const isKingInCheck = (position, x, y, isWhite) => {
-		for (let i = 0; i < position.length; i++) {
-			for (let j = 0; j < position[i].length; j++) {
-				const piece = position[i][j];
+	const isKingInCheck = (position, y, x, isWhite) => {
+		for (let j = 0; j < position.length; j++) {
+			for (let i = 0; i < position[j].length; i++) {
+				const piece = position[j][i];
 				if (piece && piece.piece.toUpperCase() !== 'K' && isWhite === (piece.piece.toUpperCase() === piece.piece)) {
-					const moves = getAllMovesForPiece(position, i, j, isWhite);
-					if (moves.some(([x2, y2]) => x2 === x && y2 === y)) {
+					const moves = getAllMovesForPiece(position, j, i, isWhite);
+					if (moves.some(move => move[0] === y && move[1] === x)) {
 						return true;
 					}
 				}
@@ -1765,7 +1802,7 @@
 	/**
 	 * @description Parse the position piece relations from a FEN string
 	 * @param {string} fen The FEN string
-	 * @returns {{piece: String, isProtected: boolean, protectedBy: String[], isThreatened: boolean, threatenedBy: String[]}[][]} The position array
+	 * @returns {{piece: String, isProtected: boolean, protectedBy: String[], isThreatened: boolean, threatenedBy: String[]}[][]} The position array, access a square with position[y][x]
 	 */
 	const parsePositionPieceRelations = (fen) => {
 		const [boardState, activeColor, castlingAvailability, enPassantTarget, halfMoveClock, fullMoveNumber] = fen.split(' ');
@@ -1800,8 +1837,8 @@
 					const isWhite = tile.piece.toUpperCase() === tile.piece;
 					const moves = getAllMovesForPiece(position, i, j, isWhite);
 					for (let move of moves) {
-						const [x, y] = move;
-						const targetTile = position[x][y];
+						const [y, x] = move;
+						const targetTile = position[y][x];
 						if (targetTile) {
 							const isTargetWhite = targetTile.piece.toUpperCase() === targetTile.piece;
 							if (isTargetWhite === isWhite) {
