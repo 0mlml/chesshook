@@ -3,7 +3,7 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require		  https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     1.4.0
+// @version     1.4.2
 // @author      0mlml
 // @description Chess.com Cheat Userscript
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -570,214 +570,219 @@
   };
 
   const externalEngineWorkerFunc = () => {
-    const intermediarySpecVersion = 1;
-    self.messageQueue = [];
+    const minIntermediaryVersion = 1;
+
+    self.uciQueue = [];
     self.hasLock = false;
     self.wsPath = null;
-    self.whichEngine = null;
+    self.whatEngine = null;
     self.intermediaryVersionString = null;
     self.ws = null;
     self.enginePassKey = null;
-
-    const postMessage = (type, payload, err = null) => {
-      self.postMessage({ type, payload, err });
-    };
-
-    const handleWebSocketMessage = (data) => {
-      const action = data.split(' ')[0];
-      const content = data.substring(action.length).trim();
-
-      switch (action) {
-        case 'iam':
-          handleIam(content);
-          break;
-        case 'auth':
-          handleAuth(content);
-          break;
-        case 'sub':
-        case 'unsub':
-        case 'lock':
-        case 'unlock':
-          handleSubscriptionLockUnlock(action, content);
-          break;
-        case 'engine':
-          self.whichEngine = content;
-          postMessage('DEBUG', 'Connected to engine ' + self.whichEngine);
-          postMessage('ENGINE', self.whichEngine);
-          break;
-        case 'bestmove':
-          handleBestMove(content);
-          break;
-        default:
-          postMessage('UCI', data);
-      }
-    };
-
-    const handleIam = (version) => {
-      self.intermediaryVersionString = version;
-      postMessage('MESSAGE', 'Connected to engine intermediary version ' + version);
-      const parts = version.split('v');
-      if (!parts[1] || parseInt(parts[1]) !== intermediarySpecVersion) {
-        postMessage('ERROR', 'Engine intermediary version is invalid or did not provide a valid version string. Please update it.');
-        self.closeWs();
-      }
-    };
-
-    const handleAuth = (authStatus) => {
-      if (authStatus === 'ok') postMessage('MESSAGE', 'Engine authentication successful');
-      else postMessage(self.enginePassKey ? 'ERROR' : 'NEEDAUTH', 'Engine authentication failed');
-    };
-
-    const handleSubscriptionLockUnlock = (action, status) => {
-      if (status === 'ok') {
-        postMessage('DEBUG', `Engine ${action} successful`);
-        if (action === 'lock') {
-          self.hasLock = true;
-          while (self.messageQueue.length) self.send(self.messageQueue.shift());
-        } else if (action === 'unlock') {
-          self.hasLock = false;
-        }
-      } else {
-        postMessage('ERROR', `Engine ${action} failed`);
-      }
-    };
-
-    const handleBestMove = (bestMove) => {
-      postMessage('BESTMOVE', bestMove);
-      self.send('unsub');
-      self.send('unlock');
-    };
-
     self.closeWs = () => {
-      if (self.ws) {
+      if (self.ws !== null) {
         self.ws.close();
         self.ws = null;
       }
     };
-
     self.openWs = (url) => {
       self.closeWs();
       self.ws = new WebSocket(url);
-      self.ws.onopen = () => postMessage('DEBUG', 'Connected to engine intermediary');
+      self.ws.onopen = () => {
+        self.postMessage({ type: 'DEBUG', payload: 'Connected to engine intermediary' });
+        self.send('whoareyou');
+      };
       self.ws.onclose = () => {
-        postMessage('DEBUG', 'Disconnected from engine');
-        postMessage('WSCLOSE');
+        self.postMessage({ type: 'DEBUG', payload: 'Disconnected from engine' });
+        self.postMessage({ type: 'WSCLOSE' });
         self.intermediaryVersionString = null;
       };
-      self.ws.onerror = e => postMessage('ERROR', 'Error with engine: ', e);
-      self.ws.onmessage = e => handleWebSocketMessage(e.data);
+      self.ws.onerror = (e) => {
+        self.postMessage({ type: 'ERROR', payload: 'Error with engine: ', err: e });
+      };
+      self.ws.onmessage = (e) => {
+        const data = e.data;
+        if (data.startsWith('iam ')) {
+          response = data.substring(4);
+          self.intermediaryVersionString = response;
+          self.postMessage({ type: 'MESSAGE', payload: 'Connected to engine intermediary version ' + response });
+          let parts = response.split('v');
+          console.log(response)
+          if (!parts[1] || parseInt(parts[1]) < minIntermediaryVersion) {
+            self.postMessage({ type: 'ERROR', payload: 'Engine intermediary version is too old or did not provide a valid version string. Please update it.' });
+            self.closeWs();
+          }
+          self.send('whatengine');
+        } else if (data.startsWith('auth')) {
+          if (data === 'authok') {
+            self.postMessage({ type: 'MESSAGE', payload: 'Engine authentication successful' });
+          } else {
+            if (!self.enginePassKey) {
+              self.postMessage({ type: 'NEEDAUTH' });
+            } else {
+              self.postMessage({ type: 'ERROR', payload: 'Engine authentication failed' });
+            }
+          }
+        } else if (data.startsWith('sub')) {
+          if (data === 'subok') {
+            self.postMessage({ type: 'DEBUG', payload: 'Engine subscription successful' });
+          } else {
+            self.postMessage({ type: 'ERROR', payload: 'Engine subscription failed' });
+          }
+        } else if (data.startsWith('unsub')) {
+          if (data === 'unsubok') {
+            self.postMessage({ type: 'DEBUG', payload: 'Engine unsubscription successful' });
+          } else {
+            self.postMessage({ type: 'ERROR', payload: 'Engine unsubscription failed' });
+          }
+        } else if (data.startsWith('lock')) {
+          if (data === 'lockok') {
+            self.postMessage({ type: 'DEBUG', payload: 'Engine lock successful' });
+            self.hasLock = true;
+            while (self.uciQueue.length > 0) {
+              self.send(self.uciQueue.shift());
+            }
+          } else {
+            self.postMessage({ type: 'ERROR', payload: 'Engine lock failed' });
+          }
+        } else if (data.startsWith('unlock')) {
+          if (data === 'unlockok') {
+            self.postMessage({ type: 'DEBUG', payload: 'Engine unlock successful' });
+            self.hasLock = false;
+          } else {
+            self.postMessage({ type: 'ERROR', payload: 'Engine unlock failed' });
+          }
+        } else if (data.startsWith('engine')) {
+          self.whichEngine = data.split(' ')[1];
+          self.postMessage({ type: 'DEBUG', payload: 'Connected to engine ' + self.whichEngine });
+          self.postMessage({ type: 'ENGINE', payload: self.whichEngine });
+        } else if (data.startsWith('bestmove')) {
+          const bestMove = data.split(' ')[1];
+          self.postMessage({ type: 'BESTMOVE', payload: bestMove });
+          self.send('unsub');
+          self.send('unlock');
+        } else {
+          self.postMessage({ type: 'UCI', payload: data });
+        }
+      };
     };
-
     self.send = (data) => {
-      if (!self.ws) return postMessage('ERROR', 'No connection to engine');
+      if (self.ws === null) return self.postMessage({ type: 'ERROR', payload: 'No connection to engine', err: null });
       self.ws.send(data);
     };
-
     self.addEventListener('message', e => {
-      const { type, payload } = e.data;
-      if (!payload && !['SUB', 'UNSUB', 'LOCK', 'UNLOCK', 'WHATENGINE', 'STOP'].includes(type)) return postMessage('ERROR', `No ${type.toLowerCase()} provided`);
-
-      switch (type) {
-        case 'UCI':
-          if (self.hasLock) self.send(payload);
-          else self.uciQueue.push(payload);
-          break;
-        case 'INIT':
-          if (!payload.startsWith('ws://')) return postMessage('ERROR', 'URL must start with ws://');
-          self.openWs(payload);
-          self.wsPath = payload;
-          break;
-        case 'AUTH':
-          self.enginePassKey = payload;
-          self.send('auth ' + payload);
-          break;
-        case 'SUB':
-        case 'UNSUB':
-        case 'LOCK':
-        case 'UNLOCK':
-        case 'WHATENGINE':
-          self.send(type.toLowerCase());
-          break;
-        case 'GETMOVE':
-          if (!payload.fen || !payload.go) return postMessage('ERROR', 'No FEN or go command provided');
-          self.send(`lock sub position fen ${payload.fen} ${payload.go}`);
-          break;
-        case 'STOP':
-          if (self.hasLock) self.send('stop unsub unlock');
-          break;
+      if (e.data.type === 'UCI') {
+        if (!e.data.payload) return self.postMessage({ type: 'ERROR', payload: 'No UCI command provided' });
+        if (!self.ws) return self.postMessage({ type: 'ERROR', payload: 'No connection to engine' });
+        if (self.hasLock) {
+          self.send(e.data.payload);
+        } else {
+          self.uciQueue.push(e.data.payload);
+        }
+      } else if (e.data.type === 'INIT') {
+        if (!e.data.payload) return self.postMessage({ type: 'ERROR', payload: 'No URL provided' });
+        if (!e.data.payload.startsWith('ws://')) return self.postMessage({ type: 'ERROR', payload: 'URL must start with ws://' });
+        self.openWs(e.data.payload);
+        self.wsPath = e.data.payload;
+      } else if (e.data.type === 'AUTH') {
+        if (!e.data.payload) return self.postMessage({ type: 'ERROR', payload: 'No auth provided' });
+        self.enginePassKey = e.data.payload;
+        self.send('auth ' + e.data.payload);
+      } else if (e.data.type === 'SUB') {
+        self.send('sub');
+      } else if (e.data.type === 'UNSUB') {
+        self.send('unsub');
+      } else if (e.data.type === 'LOCK') {
+        if (self.hasLock) return self.postMessage({ type: 'ERROR', payload: 'Already have lock' });
+        self.send('lock');
+      } else if (e.data.type === 'UNLOCK') {
+        self.send('unlock');
+      } else if (e.data.type === 'WHATENGINE') {
+        self.send('whatengine');
+      } else if (e.data.type === 'GETMOVE') {
+        if (!e.data.payload?.fen) return self.postMessage({ type: 'ERROR', payload: 'No FEN provided' });
+        if (!e.data.payload?.go) return self.postMessage({ type: 'ERROR', payload: 'No go command provided' });
+        self.send('lock');
+        self.send('sub');
+        self.send('position fen ' + e.data.payload.fen);
+        self.send(e.data.payload.go);
+      } else if (e.data.type === 'STOP') {
+        if (self.hasLock) {
+          self.send('stop');
+          self.send('unsub');
+          self.send('unlock');
+        }
       }
     });
-  };
+  }
 
-
-  const externalEngineWorkerBlob = new Blob(
-    [`(${externalEngineWorkerFunc.toString()})();`],
-    { type: 'application/javascript' }
-  );
+  const externalEngineWorkerBlob = new Blob([`(${externalEngineWorkerFunc.toString()})();`], { type: 'application/javascript' });
   const externalEngineWorkerURL = URL.createObjectURL(externalEngineWorkerBlob);
   const externalEngineWorker = new Worker(externalEngineWorkerURL);
 
-  const addToWebSocketOutput = (line, maxLines = 50) => {
-    const outputTextArea = document.getElementById(`${namespace}_websocketoutput`);
-    if (!outputTextArea) return;
-
-    const lines = outputTextArea.value.split('\n');
-    lines.push(line);
-    if (lines.length > maxLines) {
-      lines.shift();
-    }
-    outputTextArea.value = lines.join('\n');
-  }
-
-  const renderEngineInfo = (infoLine) => {
-    const outputTextArea = document.querySelector(`#${namespace}_engineoutput`);
-    if (!outputTextArea) return;
-
-    const info = infoLine.split(' ').reduce((acc, curr, i, arr) => {
-      if (['depth', 'score', 'time', 'pv'].includes(curr)) {
-        acc[curr] = curr === 'pv' ? arr.slice(i + 1).join(' ') : arr[i + 1];
-      }
-      return acc;
-    }, {});
-
-    ['depth', 'score', 'time', 'pv'].forEach((key, i) => {
-      if (info[key] && !info[key].startsWith('info')) {
-        outputTextArea.value.split('\n')[i] = `${key} ${info[key]}`;
-      }
-    });
-  }
+  let externalEngineName = null;
 
   externalEngineWorker.onmessage = (e) => {
-    switch (e.data.type) {
-      case 'DEBUG':
-        console.debug(e.data.payload);
-        addToWebSocketOutput(e.data.payload);
-        break;
-      case 'ERROR':
-        console.error(e.data.payload, e.data.err);
-        addToWebSocketOutput(e.data.payload);
-        break;
-      case 'MESSAGE':
-        addToConsole(e.data.payload);
-        addToWebSocketOutput(e.data.payload);
-        break;
-      case 'UCI':
-        renderEngineInfo(e.data.payload);
-        break;
-      case 'ENGINE':
-        externalEngineName = e.data.payload;
-        addToWebSocketOutput(`Connected to ${externalEngineName}`);
-        break;
-      case 'NEEDAUTH':
-        externalEngineWorker.postMessage({ type: 'AUTH', payload: config.externalEnginePasskey.value });
-        addToWebSocketOutput(`Attempting to authenticate with passkey ${config.externalEnginePasskey.value}`);
-        break;
-      case 'BESTMOVE':
-        handleMove(e.data.payload);
-        break;
-      default:
-        console.warn(`Unknown message type ${e.data.type}`);
-        break;
+    const maxlines = 50;
+    const websocketOutputTextArea = document.getElementById(namespace + '_websocketoutput');
+    const engineOutputTextArea = document.getElementById(namespace + '_engineoutput');
+
+    const addToWebSocketOutput = (line) => {
+      if (websocketOutputTextArea) {
+        const lines = websocketOutputTextArea.value.split('\n');
+        lines.push(line);
+        if (lines.length > maxlines) {
+          lines.shift();
+        }
+        websocketOutputTextArea.value = lines.join('\n');
+      }
+    }
+
+    const updateEngineTextarea = (infoLine) => {
+      if (engineOutputTextArea) {
+        const lines = engineOutputTextArea.value.split('\n');
+        const infoParts = infoLine.split(' ');
+        const depth = infoParts[infoParts.indexOf('depth') + 1];
+        const score = infoParts[infoParts.indexOf('score') + 1] + ' ' + infoParts[infoParts.indexOf('score') + 2];
+        const time = infoParts[infoParts.indexOf('time') + 1];
+        const bestLine = infoParts.slice(infoParts.indexOf('pv') + 1).join(' ');
+        if (depth !== 'info') {
+          lines[0] = 'depth ' + depth;
+        }
+        if (!score.startsWith('info')) {
+          lines[1] = 'score ' + score;
+        }
+        if (time !== 'info') {
+          lines[2] = 'time ' + time;
+        }
+        if (!bestLine.startsWith('info')) {
+          lines[3] = 'best line ' + bestLine;
+        }
+
+        engineOutputTextArea.value = lines.join('\n');
+      }
+    }
+
+    if (e.data.type === 'DEBUG') {
+      console.log(e.data.payload);
+      addToWebSocketOutput(e.data.payload);
+    } else if (e.data.type === 'ERROR') {
+      console.error(e.data.payload, e.data.err);
+      addToWebSocketOutput(e.data.payload);
+    } else if (e.data.type === 'MESSAGE') {
+      addToConsole(e.data.payload);
+      addToWebSocketOutput(e.data.payload);
+    } else if (e.data.type === 'UCI') {
+      updateEngineTextarea(e.data.payload);
+    } else if (e.data.type === 'ENGINE') {
+      externalEngineName = e.data.payload;
+      addToWebSocketOutput('Connected to ' + externalEngineName);
+    } else if (e.data.type === 'NEEDAUTH') {
+      externalEngineWorker.postMessage({ type: 'AUTH', payload: config.externalEnginePasskey.value });
+      addToWebSocketOutput('Attempting to authenticate with passkey ' + config.externalEnginePasskey.value);
+    } else if (e.data.type === 'BESTMOVE') {
+      addToConsole(`${externalEngineName} engine computed best move: ${e.data.payload}`);
+      handleMove(e.data.payload);
     }
   }
 
@@ -1123,7 +1128,6 @@
         } else {
           const fromPos = calculateDOMSquarePosition(uciMove.substring(0, 2));
           const toPos = calculateDOMSquarePosition(uciMove.substring(2, 4));
-          console.debug(`Moving from ${JSON.stringify(fromPos)} to ${JSON.stringify(toPos)}`);
           board.dispatchEvent(new PointerEvent('pointerdown', {
             bubbles: true,
             cancelable: true,
