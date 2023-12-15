@@ -3,28 +3,20 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require		  https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     1.3.2
+// @version     1.4.0
 // @author      0mlml
-// @description QOL
+// @description Chess.com Cheat Userscript
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
 // @downloadURL https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
 // @run-at      document-start
 // ==/UserScript==
 
 (() => {
-  /**
-   * @description Handles config changes, either manually with and object that has a key and value, or from an event.
-   * @param {{key: string, value:string}|Event} input
-   * @returns {void}
-   */
   const configChangeHandler = (input) => {
-    // If the input is an event, find the key that matches the target id, otherwise use the key from the input object.
     const configKey = input.target ? Object.keys(config).find(k => namespace + config[k].key === input.target.id) : input.key;
 
-    // If the key is not found, exit.
     if (!configKey) return;
 
-    // Handle the different types of config options.
     switch (config[configKey].type) {
       case 'checkbox':
         config[configKey].value = input.target.checked;
@@ -44,58 +36,49 @@
         break;
     }
 
-    // Update the config key in localstorage.
     window.localStorage.setItem(config[configKey].key, config[configKey].value);
 
-    // Sloppy way of updating the display status of the main window.
-    if (config.renderWindow.value === 'true') document.getElementById(namespace + '_windowmain').style.display = 'flex';
-    else document.getElementById(namespace + '_windowmain').style.display = 'none';
+    renderConfigChanges();
+    handleConfigChanges(configKey);
+  }
 
-    // Update the display of the config options.
-    configDisplayUpdater();
-
-    // Apply thinking time
-    if (configKey === 'betafishThinkingTime') betafishWorker.postMessage({ type: 'THINKINGTIME', payload: Number(config.betafishThinkingTime.value) });
-
-    // If we are not rendering hanging pieces, and on chess.com, remove all markings.
-    if (!config.renderHanging.value) {
-      let board = document.getElementsByTagName('wc-chess-board')[0];
-      if (board?.game?.markings?.removeAll) {
-        board.game.markings.removeAll();
-      }
-    }
-
-    // Inform user to set external engine path
-    if (configKey === 'whichEngine' && config.whichEngine.value === 'external') {
-      if (!config.externalEngineURL.value) {
-        addToConsole('Please set the path to the external engine in the config.');
-      } else {
+  const handleConfigChanges = (key) => {
+    switch (key) {
+      case 'betafishThinkingTime':
+        betafishWorker.postMessage({ type: 'THINKINGTIME', payload: Number(config.betafishThinkingTime.value) });
+        break;
+      case 'whichEngine':
+        if (config.whichEngine.value !== 'external') {
+          break;
+        }
+        if (!config.externalEngineURL.value) {
+          addToConsole('Please set the path to the external engine in the config.');
+          break;
+        }
         externalEngineWorker.postMessage({ type: 'INIT', payload: config.externalEngineURL.value });
-      }
-      if (!config.hasWarnedAboutExternalEngine.value || config.hasWarnedAboutExternalEngine.value === 'false') {
-        addToConsole('Please note that the external engine is not for the faint of heart. It requires tinkering and the user to host the chesshook intermediary server.');
-        alert('Please note that the external engine is not for the faint of heart. It requires tinkering and the user to host the chesshook intermediary server.')
-        config.hasWarnedAboutExternalEngine.value = 'true';
-        window.localStorage.setItem(config.hasWarnedAboutExternalEngine.key, 'true');
-      }
+
+        if (!config.hasWarnedAboutExternalEngine.value || config.hasWarnedAboutExternalEngine.value === 'false') {
+          addToConsole('Please note that the external engine is not for the faint of heart. It requires tinkering and the user to host the chesshook intermediary server.');
+          alert('Please note that the external engine is not for the faint of heart. It requires tinkering and the user to host the chesshook intermediary server.')
+          config.hasWarnedAboutExternalEngine.value = 'true';
+          window.localStorage.setItem(config.hasWarnedAboutExternalEngine.key, 'true');
+        }
+        break;
     }
 
-    // Validate external engine path
-    if (configKey === 'externalEngineURL' && config.whichEngine.value === 'external') {
+    if (key === 'externalEngineURL' && config.whichEngine.value === 'external') {
       externalEngineWorker.postMessage({ type: 'INIT', payload: config.externalEngineURL.value });
     }
 
-    if (configKey === 'externalEnginePasskey') {
+    if (key === 'externalEnginePasskey') {
       externalEngineWorker.postMessage({ type: 'AUTH', payload: config.externalEnginePasskey.value });
     }
   }
 
-  /**
-   * @description Updates the display of the config options based on the showOnlyIf function.
-   * @returns {void}
-   * @todo Utilize css classes instead of inline styles.
-   */
-  const configDisplayUpdater = () => {
+  const renderConfigChanges = () => {
+    if (config.renderWindow.value === 'true') document.getElementById(namespace + '_windowmain').style.display = 'flex';
+    else document.getElementById(namespace + '_windowmain').style.display = 'none';
+
     for (const k of Object.keys(config)) {
       const element = document.getElementById(namespace + config[k].key);
       if (!element || !config[k].showOnlyIf) continue;
@@ -105,26 +88,10 @@
     }
   }
 
-  /**
-   * @description Function to be called when a key is pressed. Will toggle the main window if alt+k is pressed.
-   * @param {KeyboardEvent} e
-   */
-  const keyPressEventListener = e => {
-    if (e.altKey && e.key === 'k') {
-      e.preventDefault();
-      toggleMainDisplay();
-    }
-  }
-
-  /**
-   * @description Initializes the config object with default values from localstorage.
-   * @returns {void}
-   */
   const configInitializer = () => {
     for (const k of Object.keys(config)) {
       const stored = window.localStorage.getItem(config[k].key);
       if (stored)
-        // This switch must exist because localstorage stores booleans and numbers as strings.
         switch (config[k].type) {
           case 'checkbox':
             config[k].value = stored === 'true' ? true : false;
@@ -139,58 +106,35 @@
     }
   }
 
-  /**
-   * @description Toggles the visibility of the main window.
-   * @returns {void}
-   */
   const toggleMainDisplay = () => {
-    // Get the main window element, and if it does not exist, exit.
     const main = document.getElementById(namespace + '_windowmain');
     if (!main) return;
 
-    // Toggle the display style of the main window.
     if (main.style.display === 'flex') main.style.display = 'none';
     else main.style.display = 'flex';
 
-    // Update the config value for renderWindow.
     configChangeHandler({ key: 'renderWindow', value: main.style.display === 'flex' ? 'true' : 'false' });
   }
 
-  /**
-   * @description Adds to the console of the main window. If the main window does not exist, will log to console instead.
-   * @param {String} text Input text
-   * @param {Boolean} isTrustedInput If the input is trusted, will use innerHTML. Otherwise, will use innerText.
-   * @returns {void}
-   */
   const addToConsole = (text, isTrustedInput = true) => {
-    // Get the console element, and if it does not exist, log to console instead and exit.
     let consoleElement = document.getElementById(namespace + '_consolevp');
     if (!consoleElement) {
-      console.log(text);
+      console.info(text);
       return;
     }
 
-    // Create a new div element, and set the style.
     const logEntryElement = document.createElement('div');
     logEntryElement.style = 'border-bottom:2px solid #333;padding-left:3px;';
 
-    // If the input is trusted, set the innerHTML to the input text. Otherwise, set the innerText to the input text.
     if (isTrustedInput) logEntryElement.innerHTML = text;
     else logEntryElement.innerText = text;
 
     document.getElementById(namespace + '_consolevp').appendChild(logEntryElement);
   }
 
-  /**
-   * @description Makes and element draggable. Will attempt to find a child element with id "parent.id + '_headerbar'" to make draggable.
-   * @param {HTMLElement} elem The element to make draggable.
-   * @param {String} configKey The key of the config object to update when the element is dragged.
-   * @returns {void}
-   */
   const makeDraggable = (elem, configKey = null) => {
     let x1 = 0, y1 = 0, x2 = 0, y2 = 0;
 
-    // The eventlistener for the mouse down event.
     const draggable_mouseDown = (e) => {
       e = e || window.event;
       e.preventDefault();
@@ -201,7 +145,6 @@
       document.addEventListener('mousemove', draggable_handleDrag);
     }
 
-    // The eventlistener for the mouse move event.
     const draggable_handleDrag = (e) => {
       e = e || window.event;
       e.preventDefault();
@@ -214,59 +157,42 @@
       elem.style.top = (elem.offsetTop - y1) + 'px';
       elem.style.left = (elem.offsetLeft - x1) + 'px';
 
-      // If we have a config key, update the config value.
       if (!configKey) return;
       configChangeHandler({ key: configKey, value: `${elem.style.left};${elem.style.top};${elem.style.width};${elem.style.height}` });
     }
 
-    // The eventlistener for the mouse up event.
     const draggable_endDrag = () => {
       document.removeEventListener('mousedown', draggable_endDrag);
       document.removeEventListener('mousemove', draggable_handleDrag);
     }
 
-    // The eventlistener for the resize event, only used if we have a config key.
     const draggable_handleResize = () => {
       configChangeHandler({ key: configKey, value: `${elem.style.left};${elem.style.top};${elem.style.width};${elem.style.height}` });
     }
     if (configKey) elem.addEventListener('resize', draggable_handleResize);
 
-    // Add the eventlistener for the mouse down event. If we have a headerbar, add the eventlistener to that instead.
     if (document.getElementById(elem.id + '_headerbar')) document.getElementById(elem.id + '_headerbar').addEventListener('mousedown', draggable_mouseDown);
     else elem.addEventListener('mousedown', draggable_mouseDown);
   }
 
-  /**
-   * @description Changes the viewport to the one specified
-   * @param {String} viewport
-   * @returns {void}
-   */
   const switchToViewport = (viewport) => {
-    // Get the viewport container and the viewport element, and if they do not exist, exit.
     const viewportContainerDiv = document.getElementById(namespace + '_windowmain_viewportcontainer');
     const viewportDiv = document.getElementById(namespace + '_' + viewport);
 
     if (!viewportContainerDiv || !viewportDiv) return;
 
-    // Hide all the viewports, and show the one we want.
     viewportContainerDiv.childNodes.forEach(el => {
       el.style.display = 'none';
     });
     viewportDiv.style.display = 'flex';
 
-    // Update the config value for lastViewport.
     configChangeHandler({ key: 'lastViewport', value: viewport });
   }
 
-  /**
-   * @description Creates the main window.
-   * @returns {HTMLDivElement} The main window element.
-   */
   const createMainWindow = () => {
     let css = `div#chesshook_windowmain{overflow:auto;resize:both;position:fixed;min-height:30vh;min-width:30vw;aspect-ratio:1.7;background:#000;display:none;flex-direction:column;align-items:center;z-index:10000990;box-shadow:0 0 10px #000;border-radius:2px;border:2px solid #222;color:#ccc;font-family:monospace}div#chesshook_windowmain button{background-color:#000;color:#ccc;margin:0 0 0 .5vw}span#chesshook_windowmain_headerbar{top:0;left:0;margin:0;width:100%;height:3vh;background:#828282;display:flex;flex-direction:column;cursor:move}span#chesshook_windowmain_topdecoline{width:100%;height:10%;margin:0;padding:0;background:linear-gradient(to right,red,orange,#ff0,green,#00f,indigo,violet)}div#chesshook_windowmain_tabs{width:100%;height:90%;margin:0;padding:0;background-color:#000;border-bottom:2px solid #222;display:flex;flex-direction:row;cursor:move}div#chesshook_windowmain_tabs_title{margin:0;padding:0;display:flex;align-items:center;align-content:center;user-select:none;flex-grow:1000}div#chesshook_windowmain_tabs_x{height:calc(100%-3px);background:#222;aspect-ratio:1;margin:0;padding:0;display:flex;align-items:center;align-content:center;justify-content:center;cursor:pointer;border:2px solid #222;border-radius:5px}div#chesshook_windowmain_menutoggle{display:block;-webkit-user-select:none;user-select:none;height:calc(100%-3px);aspect-ratio:1;margin:0;padding:3px}div#chesshook_windowmain_menutoggle input{display:block;width:40px;height:32px;position:absolute;top:-7px;left:-5px;cursor:pointer;opacity:0;z-index:10000994;-webkit-touch-callout:none}ul#chesshook_windowmain_menutoggle_menu{margin:0;list-style-type:none;-webkit-font-smoothing:antialiased;opacity:0;transition:opacity .5s cubic-bezier(.77, .2, .05, 1);width:7vw;background-color:#000;position:absolute;top:3vh;left:0;border:2px solid #222;border-radius:5px;padding:0;flex-direction:column;align-items:stretch;z-index:10000991;visibility:hidden}div#chesshook_consolevp,div#chesshook_controlpanelvp{flex-direction:column;height:100%;width:100%;overflow-y:scroll}ul#chesshook_windowmain_menutoggle_menu>li{height:3.5vh;background-color:#000;border-bottom:2px solid #222;text-align:center;line-height:3.5vh;font-size:1.75vh;color:#fff;font-family:monospace;user-select:none;cursor:pointer;text-decoration:none}div#chesshook_windowmain_menutoggle span{display:block;width:24px;height:3px;margin-bottom:3px;position:relative;background:#cdcdcd;border-radius:3px;z-index:10000992;transform-origin:4px 0px;transition:transform .5s cubic-bezier(.77, .2, .05, 1),background .5s cubic-bezier(.77, .2, .05, 1),opacity .55s}div#chesshook_windowmain_menutoggle span:first-child{transform-origin:0% 0%}div#chesshook_windowmain_menutoggle span:nth-last-child(2){transform-origin:0% 100%}div#chesshook_windowmain_menutoggle input:checked~span{opacity:1;transform:rotate(45deg) translate(-2px,-1px)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(3){opacity:0;transform:rotate(0) scale(.2,.2)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(2){transform:rotate(-45deg) translate(0,-1px)}div#chesshook_windowmain_menutoggle input:checked~ul{opacity:1;visibility:visible}div#chesshook_windowmain_viewportcontainer{width:100%;height:90%;position:absolute;margin:0;padding:0;top:10%;left:0}div#chesshook_settingsvp{width:100%;height:100%;overflow-y:scroll;display:none;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:center}div#chesshook_controlpanelvp{display:none}table#chesshook_settingsvp_table{width:100%;height:100%;display:flex;flex-direction:column;align-items:stretch;align-content:stretch}table#chesshook_settingsvp_table>tr{display:flex;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:flex-start;border-bottom:2px solid #222}table#chesshook_settingsvp_table>tr>label{padding-right:5px}div#chesshook_windowmain textarea{width:100%;height:45%;resize:none;overflow-y:scroll;background-color:#000;color:#fff;font-family:monospace;font-size:1.5vh;border:2px solid #222;border-radius:5px;padding:5px}`;
     const styleSheetNode = document.createElement('style');
 
-    // Compatibility hack
     if (styleSheetNode.styleSheet) styleSheetNode.styleSheet.cssText = css;
     else styleSheetNode.appendChild(document.createTextNode(css));
 
@@ -278,7 +204,6 @@
     if (config.renderWindow.value === 'true') mainDiv.style.display = 'flex';
     else mainDiv.style.display = 'none';
 
-    // Restore window position
     mainDiv.style.left = config.windowPlot.value.split(';')[0];
     mainDiv.style.top = config.windowPlot.value.split(';')[1];
     mainDiv.style.width = config.windowPlot.value.split(';')[2];
@@ -295,7 +220,6 @@
     const tabsDiv = document.createElement('div');
     tabsDiv.id = namespace + '_windowmain_tabs';
 
-    // https://codepen.io/erikterwan/pen/EVzeRP
     const menuToggleDiv = document.createElement('div');
     menuToggleDiv.id = namespace + '_windowmain_menutoggle';
 
@@ -365,7 +289,7 @@
     requestBoardUpdateButton.innerText = 'Request Board Update';
     requestBoardUpdateButton.addEventListener('click', e => {
       e.preventDefault();
-      window[namespace].lastFEN = null;
+      engineLastKnownFEN = null;
     });
     controlPanelViewportDiv.appendChild(requestBoardUpdateButton);
 
@@ -374,7 +298,7 @@
     requestEngineStopButton.innerText = 'Request Engine Stop';
     requestEngineStopButton.addEventListener('click', e => {
       e.preventDefault();
-      externalEngineWorker.postMessage({ type: 'STOPIFLOCK' });
+      externalEngineWorker.postMessage({ type: 'STOP' });
     });
     controlPanelViewportDiv.appendChild(requestEngineStopButton);
 
@@ -388,14 +312,11 @@
     forceScholarsMateButton.title = 'This feature simply does not work online. It will only work on the computer play page, and can be used to three crown all bots.';
     forceScholarsMateButton.addEventListener('click', e => {
       e.preventDefault();
-      if (document.location.hostname !== 'www.chess.com') return alert('You must be on chess.com to use this feature.');
-      if (document.location.pathname !== '/play/computer') return alert('You must be on the computer play page to use this feature.');
-      const board = document.getElementsByTagName('wc-chess-board')[0];
+      if (!document.location.pathname.startsWith('/play/computer')) return alert('You must be on the computer play page to use this feature.');
+      const board = document.querySelector('wc-chess-board');
       if (!board?.game?.move || !board?.game?.getFEN) return alert('You must be in a game to use this feature.');
       if (parseInt(board.game.getFEN().split(' ')[5]) > 1 || board.game.getFEN().split(' ')[1] !== 'w') return alert('It must be turn 1 and white to move to use this feature.');
 
-      // Play the moves for scholar's mate.
-      // This exploits the fact that chess.com does not enforce anti-tampering on the computer play page.
       board.game.move('e4');
       board.game.move('e5');
       board.game.move('Qf3');
@@ -413,10 +334,9 @@
       e.preventDefault();
       if (document.location.hostname !== 'www.chess.com') return alert('You must be on chess.com to use this feature.');
       if (document.location.pathname !== '/play/computer') return alert('You must be on the computer play page to use this feature.');
-      const board = document.getElementsByTagName('wc-chess-board')[0];
+      const board = document.querySelector('wc-chess-board');
       if (!board?.game?.move) return alert('You must be in a game to use this feature.');
 
-      // This once again exploits the fact that chess.com does not enforce any sort of anti-tampering on the computer play page.
       board.game.agreeDraw();
     });
     exploitsViewportDiv.appendChild(forceDrawButton);
@@ -430,7 +350,6 @@
     settingsTable.id = namespace + '_settingsvp_table';
     settingsViewportDiv.appendChild(settingsTable);
 
-    // Add settings to the settings viewport.
     for (const k of Object.keys(config)) {
       if (config[k].type === 'hidden') continue;
       const tableRow = document.createElement('tr');
@@ -502,21 +421,17 @@
     return mainDiv;
   }
 
-  // Used to prevent conflict with other scripts.
   const namespace = 'chesshook';
   const displayname = 'ChessHook';
 
-  // The window object is used to store the script's data for easy access with devtools.
   window[namespace] = {};
 
-  // The config object is used to store the settings for the script.
-  // Saving and restoring settings is handled automatically, and all non-hidden settings are displayed in the settings viewport.
   const config = {
-    renderHanging: {
-      key: namespace + '_renderhanging',
+    renderThreats: {
+      key: namespace + '_renderThreats',
       type: 'checkbox',
-      display: 'Render Hanging Pieces',
-      helptext: 'Render hanging pieces',
+      display: 'Render Threats',
+      helptext: 'Render mates, undefended pieces, underdefended pieces, and pins.',
       value: true
     },
     autoQueue: {
@@ -624,6 +539,14 @@
       step: 100,
       showOnlyIf: () => !config.legitMode.value && config.autoMove.value
     },
+    autoMoveInstaMoveStart: {
+      key: namespace + '_automoveinstamovestart',
+      type: 'checkbox',
+      display: 'Speed up game start',
+      helptext: 'Instantly move first 5',
+      value: true,
+      showOnlyIf: () => !config.legitMode.value && config.autoMove.value
+    },
     renderWindow: {
       key: namespace + '_renderwindow',
       type: 'hidden',
@@ -646,357 +569,304 @@
     },
   };
 
-  /**
-   * @description The webworker function for the external engine. Data should be inputted as { type: string, payload: any }. Valid types are: UCI, INIT. The webworker will respond with { type: string, payload: any }. Valid types are: UCI, MESSAGE, DEBUG, ERROR.
-   */
   const externalEngineWorkerFunc = () => {
-    const minIntermediaryVersion = 1;
-
-    self.uciQueue = [];
+    const intermediarySpecVersion = 1;
+    self.messageQueue = [];
     self.hasLock = false;
     self.wsPath = null;
-    self.whatEngine = null;
+    self.whichEngine = null;
     self.intermediaryVersionString = null;
     self.ws = null;
     self.enginePassKey = null;
+
+    const postMessage = (type, payload, err = null) => {
+      self.postMessage({ type, payload, err });
+    };
+
+    const handleWebSocketMessage = (data) => {
+      const action = data.split(' ')[0];
+      const content = data.substring(action.length).trim();
+
+      switch (action) {
+        case 'iam':
+          handleIam(content);
+          break;
+        case 'auth':
+          handleAuth(content);
+          break;
+        case 'sub':
+        case 'unsub':
+        case 'lock':
+        case 'unlock':
+          handleSubscriptionLockUnlock(action, content);
+          break;
+        case 'engine':
+          self.whichEngine = content;
+          postMessage('DEBUG', 'Connected to engine ' + self.whichEngine);
+          postMessage('ENGINE', self.whichEngine);
+          break;
+        case 'bestmove':
+          handleBestMove(content);
+          break;
+        default:
+          postMessage('UCI', data);
+      }
+    };
+
+    const handleIam = (version) => {
+      self.intermediaryVersionString = version;
+      postMessage('MESSAGE', 'Connected to engine intermediary version ' + version);
+      const parts = version.split('v');
+      if (!parts[1] || parseInt(parts[1]) !== intermediarySpecVersion) {
+        postMessage('ERROR', 'Engine intermediary version is invalid or did not provide a valid version string. Please update it.');
+        self.closeWs();
+      }
+    };
+
+    const handleAuth = (authStatus) => {
+      if (authStatus === 'ok') postMessage('MESSAGE', 'Engine authentication successful');
+      else postMessage(self.enginePassKey ? 'ERROR' : 'NEEDAUTH', 'Engine authentication failed');
+    };
+
+    const handleSubscriptionLockUnlock = (action, status) => {
+      if (status === 'ok') {
+        postMessage('DEBUG', `Engine ${action} successful`);
+        if (action === 'lock') {
+          self.hasLock = true;
+          while (self.messageQueue.length) self.send(self.messageQueue.shift());
+        } else if (action === 'unlock') {
+          self.hasLock = false;
+        }
+      } else {
+        postMessage('ERROR', `Engine ${action} failed`);
+      }
+    };
+
+    const handleBestMove = (bestMove) => {
+      postMessage('BESTMOVE', bestMove);
+      self.send('unsub');
+      self.send('unlock');
+    };
+
     self.closeWs = () => {
-      if (self.ws !== null) {
+      if (self.ws) {
         self.ws.close();
         self.ws = null;
       }
     };
+
     self.openWs = (url) => {
       self.closeWs();
       self.ws = new WebSocket(url);
-      self.ws.onopen = () => {
-        self.postMessage({ type: 'DEBUG', payload: 'Connected to engine intermediary' });
-        self.send('whoareyou');
-      };
+      self.ws.onopen = () => postMessage('DEBUG', 'Connected to engine intermediary');
       self.ws.onclose = () => {
-        self.postMessage({ type: 'DEBUG', payload: 'Disconnected from engine' });
-        self.postMessage({ type: 'WSCLOSE' });
+        postMessage('DEBUG', 'Disconnected from engine');
+        postMessage('WSCLOSE');
         self.intermediaryVersionString = null;
       };
-      self.ws.onerror = (e) => {
-        self.postMessage({ type: 'ERROR', payload: 'Error with engine: ', err: e });
-      };
-      self.ws.onmessage = (e) => {
-        const data = e.data;
-        if (data.startsWith('iam ')) {
-          response = data.substring(4);
-          self.intermediaryVersionString = response;
-          self.postMessage({ type: 'MESSAGE', payload: 'Connected to engine intermediary version ' + response });
-          let parts = response.split('v');
-          console.log(response)
-          if (!parts[1] || parseInt(parts[1]) < minIntermediaryVersion) {
-            self.postMessage({ type: 'ERROR', payload: 'Engine intermediary version is too old or did not provide a valid version string. Please update it.' });
-            self.closeWs();
-          }
-        } else if (data.startsWith('auth')) {
-          if (data === 'authok') {
-            self.postMessage({ type: 'MESSAGE', payload: 'Engine authentication successful' });
-          } else {
-            if (!self.enginePassKey) {
-              self.postMessage({ type: 'NEEDAUTH' });
-            } else {
-              self.postMessage({ type: 'ERROR', payload: 'Engine authentication failed' });
-            }
-          }
-        } else if (data.startsWith('sub')) {
-          if (data === 'subok') {
-            self.postMessage({ type: 'DEBUG', payload: 'Engine subscription successful' });
-          } else {
-            self.postMessage({ type: 'ERROR', payload: 'Engine subscription failed' });
-          }
-        } else if (data.startsWith('unsub')) {
-          if (data === 'unsubok') {
-            self.postMessage({ type: 'DEBUG', payload: 'Engine unsubscription successful' });
-          } else {
-            self.postMessage({ type: 'ERROR', payload: 'Engine unsubscription failed' });
-          }
-        } else if (data.startsWith('lock')) {
-          if (data === 'lockok') {
-            self.postMessage({ type: 'DEBUG', payload: 'Engine lock successful' });
-            self.hasLock = true;
-            while (self.uciQueue.length > 0) {
-              self.send(self.uciQueue.shift());
-            }
-          } else {
-            self.postMessage({ type: 'ERROR', payload: 'Engine lock failed' });
-          }
-        } else if (data.startsWith('unlock')) {
-          if (data === 'unlockok') {
-            self.postMessage({ type: 'DEBUG', payload: 'Engine unlock successful' });
-            self.hasLock = false;
-          } else {
-            self.postMessage({ type: 'ERROR', payload: 'Engine unlock failed' });
-          }
-        } else if (data.startsWith('engine')) {
-          self.whichEngine = data.split(' ')[1];
-          self.postMessage({ type: 'DEBUG', payload: 'Connected to engine ' + self.whichEngine });
-          self.postMessage({ type: 'ENGINE', payload: self.whichEngine });
-        } else if (data.startsWith('bestmove')) {
-          const bestMove = data.split(' ')[1];
-          self.postMessage({ type: 'BESTMOVE', payload: bestMove });
-          self.send('unsub');
-          self.send('unlock');
-        } else {
-          self.postMessage({ type: 'UCI', payload: data });
-        }
-      };
+      self.ws.onerror = e => postMessage('ERROR', 'Error with engine: ', e);
+      self.ws.onmessage = e => handleWebSocketMessage(e.data);
     };
+
     self.send = (data) => {
-      if (self.ws === null) return self.postMessage({ type: 'ERROR', payload: 'No connection to engine', err: null });
+      if (!self.ws) return postMessage('ERROR', 'No connection to engine');
       self.ws.send(data);
     };
+
     self.addEventListener('message', e => {
-      if (e.data.type === 'UCI') {
-        if (!e.data.payload) return self.postMessage({ type: 'ERROR', payload: 'No UCI command provided' });
-        if (!self.ws) return self.postMessage({ type: 'ERROR', payload: 'No connection to engine' });
-        if (self.hasLock) {
-          self.send(e.data.payload);
-        } else {
-          self.uciQueue.push(e.data.payload);
-        }
-      } else if (e.data.type === 'INIT') {
-        if (!e.data.payload) return self.postMessage({ type: 'ERROR', payload: 'No URL provided' });
-        if (!e.data.payload.startsWith('ws://')) return self.postMessage({ type: 'ERROR', payload: 'URL must start with ws://' });
-        self.openWs(e.data.payload);
-        self.wsPath = e.data.payload;
-      } else if (e.data.type === 'AUTH') {
-        if (!e.data.payload) return self.postMessage({ type: 'ERROR', payload: 'No auth provided' });
-        self.enginePassKey = e.data.payload;
-        self.send('auth ' + e.data.payload);
-      } else if (e.data.type === 'SUB') {
-        self.send('sub');
-      } else if (e.data.type === 'UNSUB') {
-        self.send('unsub');
-      } else if (e.data.type === 'LOCK') {
-        if (self.hasLock) return self.postMessage({ type: 'ERROR', payload: 'Already have lock' });
-        self.send('lock');
-      } else if (e.data.type === 'UNLOCK') {
-        self.send('unlock');
-      } else if (e.data.type === 'WHATENGINE') {
-        self.send('whatengine');
-      } else if (e.data.type === 'GETMOVE') {
-        if (!e.data.payload?.fen) return self.postMessage({ type: 'ERROR', payload: 'No FEN provided' });
-        if (!e.data.payload?.go) return self.postMessage({ type: 'ERROR', payload: 'No go command provided' });
-        self.send('lock');
-        self.send('sub');
-        self.send('position fen ' + e.data.payload.fen);
-        self.send(e.data.payload.go);
-      } else if (e.data.type === 'STOPIFLOCK') {
-        if (self.hasLock) {
-          self.send('stop');
-          self.send('unsub');
-          self.send('unlock');
-        }
+      const { type, payload } = e.data;
+      if (!payload && !['SUB', 'UNSUB', 'LOCK', 'UNLOCK', 'WHATENGINE', 'STOP'].includes(type)) return postMessage('ERROR', `No ${type.toLowerCase()} provided`);
+
+      switch (type) {
+        case 'UCI':
+          if (self.hasLock) self.send(payload);
+          else self.uciQueue.push(payload);
+          break;
+        case 'INIT':
+          if (!payload.startsWith('ws://')) return postMessage('ERROR', 'URL must start with ws://');
+          self.openWs(payload);
+          self.wsPath = payload;
+          break;
+        case 'AUTH':
+          self.enginePassKey = payload;
+          self.send('auth ' + payload);
+          break;
+        case 'SUB':
+        case 'UNSUB':
+        case 'LOCK':
+        case 'UNLOCK':
+        case 'WHATENGINE':
+          self.send(type.toLowerCase());
+          break;
+        case 'GETMOVE':
+          if (!payload.fen || !payload.go) return postMessage('ERROR', 'No FEN or go command provided');
+          self.send(`lock sub position fen ${payload.fen} ${payload.go}`);
+          break;
+        case 'STOP':
+          if (self.hasLock) self.send('stop unsub unlock');
+          break;
       }
     });
-  }
+  };
 
-  const externalEngineWorkerBlob = new Blob([`(${externalEngineWorkerFunc.toString()})();`], { type: 'application/javascript' });
+
+  const externalEngineWorkerBlob = new Blob(
+    [`(${externalEngineWorkerFunc.toString()})();`],
+    { type: 'application/javascript' }
+  );
   const externalEngineWorkerURL = URL.createObjectURL(externalEngineWorkerBlob);
   const externalEngineWorker = new Worker(externalEngineWorkerURL);
 
-  let externalEngineName = null;
+  const addToWebSocketOutput = (line, maxLines = 50) => {
+    const outputTextArea = document.getElementById(`${namespace}_websocketoutput`);
+    if (!outputTextArea) return;
 
-  externalEngineWorker.onmessage = (e) => {
-    const maxlines = 50;
-    const websocketOutputTextArea = document.getElementById(namespace + '_websocketoutput');
-    const engineOutputTextArea = document.getElementById(namespace + '_engineoutput');
-
-    const addToWebSocketOutput = (line) => {
-      if (websocketOutputTextArea) {
-        const lines = websocketOutputTextArea.value.split('\n');
-        lines.push(line);
-        if (lines.length > maxlines) {
-          lines.shift();
-        }
-        websocketOutputTextArea.value = lines.join('\n');
-      }
+    const lines = outputTextArea.value.split('\n');
+    lines.push(line);
+    if (lines.length > maxLines) {
+      lines.shift();
     }
-
-    const updateEngineTextarea = (infoLine) => {
-      if (engineOutputTextArea) {
-        const lines = engineOutputTextArea.value.split('\n');
-        const infoParts = infoLine.split(' ');
-        const depth = infoParts[infoParts.indexOf('depth') + 1];
-        const score = infoParts[infoParts.indexOf('score') + 1] + ' ' + infoParts[infoParts.indexOf('score') + 2];
-        const time = infoParts[infoParts.indexOf('time') + 1];
-        const bestLine = infoParts.slice(infoParts.indexOf('pv') + 1).join(' ');
-        if (depth !== 'info') {
-          lines[0] = 'depth ' + depth;
-        }
-        if (!score.startsWith('info')) {
-          lines[1] = 'score ' + score;
-        }
-        if (time !== 'info') {
-          lines[2] = 'time ' + time;
-        }
-        if (!bestLine.startsWith('info')) {
-          lines[3] = 'best line ' + bestLine;
-        }
-
-        engineOutputTextArea.value = lines.join('\n');
-      }
-    }
-
-    if (e.data.type === 'DEBUG') {
-      console.log(e.data.payload);
-      addToWebSocketOutput(e.data.payload);
-    } else if (e.data.type === 'ERROR') {
-      console.error(e.data.payload, e.data.err);
-      addToWebSocketOutput(e.data.payload);
-    } else if (e.data.type === 'MESSAGE') {
-      addToConsole(e.data.payload);
-      addToWebSocketOutput(e.data.payload);
-    } else if (e.data.type === 'UCI') {
-      updateEngineTextarea(e.data.payload);
-    } else if (e.data.type === 'ENGINE') {
-      externalEngineName = e.data.payload;
-      addToWebSocketOutput('Connected to ' + externalEngineName);
-    } else if (e.data.type === 'NEEDAUTH') {
-      externalEngineWorker.postMessage({ type: 'AUTH', payload: config.externalEnginePasskey.value });
-      addToWebSocketOutput('Attempting to authenticate with passkey ' + config.externalEnginePasskey.value);
-    } else if (e.data.type === 'BESTMOVE') {
-      processMove(e.data.payload);
-    }
+    outputTextArea.value = lines.join('\n');
   }
 
-  /**
-   * @description The webworker function for the betafish engine.  Data should be inputted as { type: string, payload: any }. Valid types are: FEN, GETMOVE, THINKINGTIME. The payload for FEN should be a FEN string. The payload for GETMOVE should be null. The payload for THINKINGTIME should be a number. The webworker will respond with { type: string, payload: any }. Valid types are: MOVE, MESSAGE, DEBUG, ERROR.
-   * @returns {void}
-   */
-  const betafishWebWorkerFunc = () => {
-    let betafish = betafishEngine();
-    let working = false;
-    self.addEventListener('message', e => {
-      if (e.data.type === 'FEN') {
-        if (!betafish) return self.postMessage({ type: 'ERROR', payload: 'Betafish not initialized.' });
-        if (!e.data.payload) return self.postMessage({ type: 'ERROR', payload: 'No FEN provided.' });
-        self.postMessage({ type: 'DEBUG', payload: 'Betafish recieved FEN.' });
-        betafish.setFEN(e.data.payload);
-      } else if (e.data.type === 'GETMOVE') {
-        if (!betafish) return self.postMessage({ type: 'ERROR', payload: 'Betafish not initialized.' });
-        if (working) return self.postMessage({ type: 'ERROR', payload: 'Betafish is already calculating.' });
-        self.postMessage({ type: 'MESSAGE', payload: 'Betafish recieved request for best move. Calculating...' });
-        working = true;
-        const move = betafish.getBestMove();
-        working = false;
-        self.postMessage({ type: 'DEBUG', payload: 'Betafish has finished calculating.' })
-        self.postMessage({ type: 'MOVE', payload: { move: move, toMove: betafish.getFEN().split(' ')[1] } })
-      } else if (e.data.type === 'THINKINGTIME') {
-        if (!betafish) return self.postMessage({ type: 'ERROR', payload: 'Betafish not initialized.' });
-        if (!isNaN(e.data.payload)) {
-          betafish.setThinkingTime(e.data.payload / 1000);
-          self.postMessage({ type: 'DEBUG', payload: 'Betafish thinking time set to ' + e.data.payload + 'ms.' });
-        } else {
-          self.postMessage({ type: 'ERROR', payload: 'Invalid thinking time provided.' });
-        }
+  const renderEngineInfo = (infoLine) => {
+    const outputTextArea = document.querySelector(`#${namespace}_engineoutput`);
+    if (!outputTextArea) return;
+
+    const info = infoLine.split(' ').reduce((acc, curr, i, arr) => {
+      if (['depth', 'score', 'time', 'pv'].includes(curr)) {
+        acc[curr] = curr === 'pv' ? arr.slice(i + 1).join(' ') : arr[i + 1];
+      }
+      return acc;
+    }, {});
+
+    ['depth', 'score', 'time', 'pv'].forEach((key, i) => {
+      if (info[key] && !info[key].startsWith('info')) {
+        outputTextArea.value.split('\n')[i] = `${key} ${info[key]}`;
       }
     });
   }
 
-  // Hacky way of loading a webworker from a function. Also prepends the betafish engine to the webworker.
+  externalEngineWorker.onmessage = (e) => {
+    switch (e.data.type) {
+      case 'DEBUG':
+        console.debug(e.data.payload);
+        addToWebSocketOutput(e.data.payload);
+        break;
+      case 'ERROR':
+        console.error(e.data.payload, e.data.err);
+        addToWebSocketOutput(e.data.payload);
+        break;
+      case 'MESSAGE':
+        addToConsole(e.data.payload);
+        addToWebSocketOutput(e.data.payload);
+        break;
+      case 'UCI':
+        renderEngineInfo(e.data.payload);
+        break;
+      case 'ENGINE':
+        externalEngineName = e.data.payload;
+        addToWebSocketOutput(`Connected to ${externalEngineName}`);
+        break;
+      case 'NEEDAUTH':
+        externalEngineWorker.postMessage({ type: 'AUTH', payload: config.externalEnginePasskey.value });
+        addToWebSocketOutput(`Attempting to authenticate with passkey ${config.externalEnginePasskey.value}`);
+        break;
+      case 'BESTMOVE':
+        handleMove(e.data.payload);
+        break;
+      default:
+        console.warn(`Unknown message type ${e.data.type}`);
+        break;
+    }
+  }
+
+  const betafishWebWorkerFunc = () => {
+    self.instance = betafishEngine();
+    self.thinking = false;
+
+    const postError = (message) => self.postMessage({ type: 'ERROR', payload: message });
+    const isInstanceInitialized = () => self.instance || postError('Betafish not initialized.');
+
+    self.addEventListener('message', e => {
+      if (!isInstanceInitialized()) return;
+
+      switch (e.data.type) {
+        case 'FEN':
+          if (!e.data.payload) return postError('No FEN provided.');
+          self.postMessage({ type: 'DEBUG', payload: 'Betafish received FEN.' });
+          self.instance.setFEN(e.data.payload);
+          break;
+        case 'GETMOVE':
+          if (self.thinking) return postError('Betafish is already calculating.');
+          self.postMessage({ type: 'MESSAGE', payload: 'Betafish received request for best move. Calculating...' });
+          self.thinking = true;
+          const move = self.instance.getBestMove();
+          self.thinking = false;
+          self.postMessage({ type: 'DEBUG', payload: 'Betafish has finished calculating.' });
+          self.postMessage({ type: 'MOVE', payload: { move, toMove: self.instance.getFEN().split(' ')[1] } });
+          break;
+        case 'THINKINGTIME':
+          if (isNaN(e.data.payload)) return postError('Invalid thinking time provided.');
+          self.instance.setThinkingTime(e.data.payload / 1000);
+          self.postMessage({ type: 'DEBUG', payload: `Betafish thinking time set to ${e.data.payload}ms.` });
+          break;
+        default:
+          postError('Invalid message type.');
+      }
+    });
+  };
+
   const betafishWorkerBlob = new Blob([`const betafishEngine=${betafishEngine.toString()};(${betafishWebWorkerFunc.toString()})();`], { type: 'application/javascript' });
   const betafishWorkerURL = URL.createObjectURL(betafishWorkerBlob);
   const betafishWorker = new Worker(betafishWorkerURL);
 
   const betafishPieces = { EMPTY: 0, wP: 1, wN: 2, wB: 3, wR: 4, wQ: 5, wK: 6, bP: 7, bN: 8, bB: 9, bR: 10, bQ: 11, bK: 12 };
 
-  /**
-   * @description The listener for the betafish webworker. Data should be inputted as { type: string, payload: any }. Valid types are: 'DEBUG', 'ERROR', 'MESSAGE', 'MOVE'.
-   * @param {MessageEvent} e The message event.
-   */
   betafishWorker.onmessage = e => {
-    if (e.data.type === 'DEBUG') {
-      console.log(e.data.payload);
-    } else if (e.data.type === 'ERROR') {
-      console.error(e.data.payload);
-    } else if (e.data.type === 'MESSAGE') {
-      addToConsole(e.data.payload);
-    } else if (e.data.type === 'MOVE') {
-      const move = e.data.payload.move;
-      const squareToRankFile = (sq) => [Math.floor((sq - 21) / 10), sq - 21 - Math.floor((sq - 21) / 10) * 10];
-
-      const from = squareToRankFile(move & 0x7f);
-      const to = squareToRankFile((move >> 7) & 0x7f);
-      const captured = (move >> 14) & 0xf;
-      const promoted = (move >> 20) & 0xf;
-
-      let promotedString = '';
-      if (promoted !== betafishPieces.EMPTY) {
-        if (promoted === betafishPieces.wQ || promoted === betafishPieces.bQ) promotedString += 'q';
-        else if (promoted === betafishPieces.wR || promoted === betafishPieces.bR) promotedString += 'r';
-        else if (promoted === betafishPieces.wB || promoted === betafishPieces.bB) promotedString += 'b';
-        else if (promoted === betafishPieces.wN || promoted === betafishPieces.bN) promotedString += 'n';
-      }
-
-      const uciMove = coordsToUCIMoveString(from, to, promotedString);
-
-      addToConsole(`Betafish computed best for ${e.data.payload.toMove === 'w' ? 'white' : 'black'}: ${uciMove}`);
-
-      processMove(uciMove);
+    switch (e.data.type) {
+      case 'DEBUG':
+      case 'MESSAGE':
+        console.info(e.data.payload);
+        break;
+      case 'ERROR':
+        console.error(e.data.payload);
+        break;
+      case 'MOVE':
+        const { move, toMove } = e.data.payload;
+        const squareToRankFile = sq => [Math.floor((sq - 21) / 10), sq - 21 - Math.floor((sq - 21) / 10) * 10];
+        const from = squareToRankFile(move & 0x7f);
+        const to = squareToRankFile((move >> 7) & 0x7f);
+        const promoted = (move >> 20) & 0xf;
+        const promotedString = Object.entries(betafishPieces).find(([key, value]) => value === promoted)?.[0].toLowerCase()[1] || '';
+        const uciMove = coordsToUCIMoveString(from, to, promotedString);
+        addToConsole(`Betafish computed best for ${toMove === 'w' ? 'white' : 'black'}: ${uciMove}`);
+        handleMove(uciMove);
+        break;
     }
-  }
+  };
 
-  /**
-   * @description The init function. This is called when the script is loaded. It does not handle time-sensitive matters such as script injection.
-   * @returns {void}
-   */
   const init = () => {
     createMainWindow();
     addToConsole(`Loaded! This is version ${GM_info.script.version}`);
     addToConsole(`Github: https://github.com/0mlml/chesshook`);
-    if (config.renderWindow !== 'true') console.log('Chesshook has initialized in the background. To open the window, use the hotkey alt+k');
+    if (config.renderWindow !== 'true') console.info('Chesshook has initialized in the background. To open the window, use the hotkey alt+k');
     if (config.externalEngineURL.value && config.whichEngine.value === 'external') {
       externalEngineWorker.postMessage({ type: 'INIT', payload: config.externalEngineURL.value });
     }
   }
 
-  // Last FEN and position. Mostly for debug.
-  window[namespace].lastFEN = '';
-  window[namespace].lastPos = {};
-
-  // Map of piece values.
-  const pieceValueMap = {
-    'p': 1,
-    'n': 3,
-    'b': 3,
-    'r': 5,
-    'q': 9,
-    'k': 0
+  const getPieceValue = (piece, scoreActivity = false) => {
+    return {
+      'p': 1,
+      'n': 3,
+      'b': 3,
+      'r': 5,
+      'q': 9,
+      'k': scoreActivity ? -3 : 99
+    }[piece.toLowerCase()];
   }
 
-  /**
-   * @description Gets the value of a piece by letter.
-   * @param {String} piece The piece letter.
-   * @returns {Number} The value of the piece.
-   */
-  const getPieceValue = (piece) => {
-    return pieceValueMap[piece.toLowerCase()];
-  }
-
-  /**
-   * @description Gets the standard notation coordinate from an x and y coordinate.
-   * @param {Number} x The x coordinate.
-   * @param {Number} y The y coordinate.
-   * @returns {String} The standard notation coordinate.
-   */
-  const xyToCoord = (x, y) => {
-    const letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-    const file = letters[y];
-    const rank = 8 - x;
-    return file + rank;
-  }
-
-  /**
-   * @description Gets the standard notation coordinate from an x and y coordinate, but with the Y coordinate inverted.
-   * @param {Number} x The x coordinate.
-   * @param {Number} y The y coordinate.
-   * @returns {String} The standard notation coordinate.
-   */
   const xyToCoordInverted = (x, y) => {
     const letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
     const file = letters[y];
@@ -1004,11 +874,6 @@
     return file + rank;
   }
 
-  /**
-   * @description Gets the x and y coordinates from a standard notation coordinate.
-   * @param {String} coord
-   * @returns {Number[]}
-   */
   const coordToYX = (coord) => {
     const letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
     const file = letters.indexOf(coord[0]) + 1;
@@ -1016,187 +881,142 @@
     return [file, rank];
   }
 
-  /**
-   * @description Gets the x and y coordinates from a standard notation coordinate, but with the Y coordinate inverted.
-   * @param {String} coord
-   * @returns {Number[]}
-   */
-  const coordToXYInverted = (coord) => {
-    const letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-    const file = letters.indexOf(coord[0]) + 1;
-    const rank = 8 - Number(coord[1]);
-    return [rank, file];
-  }
-
-  /**
-   * @description Converts coordinates and a promition to a UCI move
-   * @param {Number[]} from the coordinate to move from
-   * @param {Number[]} to the coordinate to move to
-   * @param {String} promition piece to promote to
-   * @return {String} UCI move
-   */
   const coordsToUCIMoveString = (from, to, promotion) => {
     return xyToCoordInverted(from[0], from[1]) + xyToCoordInverted(to[0], to[1]) + promotion;
   }
 
-  /**
-   * @description Renders hanging pieces on the board for chess.com.
-   * @param {String} fen The FEN of the position.
-   * @param {{piece: String, isProtected: boolean, protectedBy: String[], isThreatened: boolean, threatenedBy: String[]}[][]} position The position object.
-   * @returns {void}
-   */
-  const renderHanging = (fen) => {
-    const toMove = fen.split(' ')[1];
+  let renderThreatsLastKnownFEN = null;
+  const renderThreats = () => {
+    let board = document.querySelector('wc-chess-board');
+    if (renderThreatsLastKnownFEN === board.game.getFEN()) return;
+    renderThreatsLastKnownFEN = board.game.getFEN();
 
-    // Check that the board is loaded and that the markings API is available.
-    let board = document.getElementsByTagName('wc-chess-board')[0];
-    if (!board?.game?.markings?.addMany || !board?.game?.markings?.removeAll) return false;
-
-    // Remove all markings.
     board.game.markings.removeAll();
 
-    const position = parsePositionPieceRelations(fen);
+    const threats = board.game.getJCEGameCopy().threats();
 
-    let markings = [];
-    for (let i = 0; i < position.length; i++) {
-      for (let j = 0; j < position[i].length; j++) {
-        const tile = position[i][j];
-
-        // If the tile is empty, continue.
-        if (!tile) continue;
-
-        // If the tile is hanging, highlight it.
-        if (!tile.isProtected) {
-          markings.push({ type: 'highlight', data: { square: xyToCoord(i, j) } });
-        }
-
-        // If the tile is not threatened, or is protected, continue.
-        if (!tile.isThreatened || tile.isProtected) continue;
-
-        let isWhite = tile.piece === tile.piece.toUpperCase();
-        if ((isWhite && toMove === 'w' || !isWhite && toMove === 'b')) continue;
-
-        for (const threat of tile.threatenedBy) {
-          markings.push({ type: 'arrow', data: { color: '#ff7777', from: xyToCoord(threat[0], threat[1]), to: xyToCoord(i, j) } });
-        }
-      }
+    for (let pin of threats.pins) {
+      board.game.markings.addOne({ type: 'highlight', data: { color: '#33f', square: pin } });
     }
-    board.game.markings.addMany(markings);
+
+    for (let undefended of threats.undefended) {
+      board.game.markings.addOne({ type: 'arrow', data: { color: '#ff0', from: undefended.substring(0, 2), to: undefended.substring(2, 4) } });
+    }
+
+    for (let underdefended of threats.underdefended) {
+      board.game.markings.addOne({ type: 'arrow', data: { color: '#f66', from: underdefended.substring(0, 2), to: underdefended.substring(2, 4) } });
+    }
+
+    for (let mate of threats.mates) {
+      board.game.markings.addOne({ type: 'arrow', data: { color: '#f00', from: mate.substring(0, 2), to: mate.substring(2, 4) } });
+    }
   }
 
-  /**
-   * @description Gets the distance from the end of the board.
-   * @param {Number} yCoord The y coordinate.
-   * @param {Boolean} isWhite Whether the piece is white.
-   * @returns {Number} The distance from the end of the board.
-   */
-  const distanceToEnd = (yCoord, isWhite) => {
-    return !isWhite ? 7 - yCoord : yCoord;
-  }
-
-  /**
-   * @description Gets the distance from the center of the board.
-   * @param {Number} xCoord The x coordinate.
-   * @returns {Number} The distance from the center of the board.
-   */
-  const distanceToCenter = (xCoord) => {
-    return Math.abs(3.5 - xCoord);
-  }
-
-  /**
-   * @description Returns a new promise that resolves after the given delay.
-   * @param {Number} ms Delay to resolve after in miliseconds.
-   * @returns {Promise} Promise that resolves after the given time.
-   */
   const resolveAfterMs = (ms = 1000) => {
     if (ms <= 0) return new Promise(res => res());
     return new Promise(res => setTimeout(res, ms));
   }
 
-  /**
-   * @description The Checkmate, Check, Capture, Push engine.
-   * @param {String} fen The FEN of the position.
-   * @returns {[Number, Number, Number, Number, String]}
-   */
-  const cccpEngine = (fen) => {
-    const position = parsePositionPieceRelations(fen);
-    const isWhite = fen.split(' ')[1] === 'w';
+  const mergeMoveToUCI = (move) => move.from + move.to + (move.promotion ? move.promotion : '');
 
-    const checkMateMoves = getCheckmateMoves(fen);
-    if (checkMateMoves.length > 0) {
-      if (position[checkMateMoves[0][0]][checkMateMoves[0][1]].piece.toLowerCase() === 'p' && (checkMateMoves[0][2] === 0 || checkMateMoves[0][2] === 7)) {
-        checkMateMoves[0][4] = 'q';
-      }
-      return checkMateMoves[0];
+  const cccpEngine = () => {
+    const board = document.querySelector('wc-chess-board');
+
+    const legalMoves = board.game.getLegalMoves();
+
+    if (legalMoves.length === 0) return;
+
+    const checkmates = legalMoves.filter(m => m.san.includes('#'));
+
+    if (checkmates.length > 0) {
+      return mergeMoveToUCI(checkmates[0]);
     }
 
-    const legalMoves = getAllLegalMoves(fen);
 
-    const checkMoves = legalMoves.filter(move => isKingInCheckAfterMove(position, move[0], move[1], move[2], move[3], isWhite));
-    if (checkMoves.length > 0) {
-      if (position[checkMoves[0][0]][checkMoves[0][1]].piece.toLowerCase() === 'p' && (checkMoves[0][2] === 0 || checkMoves[0][2] === 7)) {
-        checkMoves[0][4] = 'q';
-      }
+    const checks = legalMoves.filter(m => m.san.includes('+'));
+    const captureMoves = legalMoves.filter(m => m.san.includes('x'));
 
-      return checkMoves[0];
+    const goodCaptureExists = captureMoves.some(m => {
+      const capturedValue = getPieceValue(m.captured, true);
+      return capturedValue > 4 || getPieceValue(m.piece, true) < capturedValue;
+    });
+
+    if (checks.length > 0 && !goodCaptureExists) {
+      return mergeMoveToUCI(checks[0]);
     }
 
-    const captureMoves = legalMoves.filter(move => position[move[2]][move[3]]).sort((a, b) => getPieceValue(position[b[2]][b[3]].piece) - getPieceValue(position[a[2]][a[3]].piece));
     if (captureMoves.length > 0) {
-      if (position[captureMoves[0][0]][captureMoves[0][1]].piece.toLowerCase() === 'p' && (captureMoves[0][2] === 0 || captureMoves[0][2] === 7)) {
-        captureMoves[0][4] = 'q';
-      }
-      return captureMoves[0];
+      return mergeMoveToUCI(captureMoves.sort((a, b) => (getPieceValue(b.captured) - getPieceValue(b.piece) + getPieceValue(b.captured) * 0.1) - (getPieceValue(a.captured) - getPieceValue(b.piece) + getPieceValue(a.captured) * 0.1))[0]);
     }
 
-    let pushMoves = legalMoves.sort((a, b) => distanceToEnd(a[2], isWhite) - distanceToEnd(b[2], isWhite));
-    if (pushMoves.length > 0) {
-      const farthestDistance = distanceToEnd(pushMoves[0][2], isWhite);
-      pushMoves = pushMoves.filter(move => distanceToEnd(move[2], isWhite) === farthestDistance);
-      pushMoves.sort((a, b) => distanceToCenter(a[3]) - distanceToCenter(b[3]));
-      if (position[pushMoves[0][0]][pushMoves[0][1]].piece.toLowerCase() === 'p' && (pushMoves[0][2] === 0 || pushMoves[0][2] === 7)) {
-        pushMoves[0][4] = 'q';
+    const pushes = legalMoves.sort((a, b) => {
+      let scoreA = getPieceValue(a.piece, true);
+      let scoreB = getPieceValue(b.piece, true);
+
+      const columnScores = { 'a': -1, 'b': 0, 'c': 1, 'd': 3, 'e': 3, 'f': 1, 'g': 0, 'h': -1 };
+
+      scoreA += columnScores[a.to[0]];
+      scoreB += columnScores[b.to[0]];
+
+      const scorePush = (to, isWhite) => {
+        const toRow = parseInt(to[1]);
+
+        return isWhite ? toRow : 9 - toRow;
       }
-      return pushMoves[0];
+
+      scoreA += scorePush(a.to, a.color === 1);
+      scoreB += scorePush(b.to, b.color === 1);
+
+      a.score = scoreA;
+      b.score = scoreB;
+      return scoreB - scoreA;
+    });
+
+    return mergeMoveToUCI(pushes[0]);
+  }
+
+  const isMyTurn = () => {
+    const board = document.querySelector('wc-chess-board');
+    const fen = board.game.getFEN();
+
+    if (config.playingAs.value !== 'both') {
+      if ((config.playingAs.value === 'white' && fen.split(' ')[1] === 'b') ||
+        (config.playingAs.value === 'black' && fen.split(' ')[1] === 'w')) {
+        return false;
+      }
     }
+
+    if (config.playingAs.value === 'auto') {
+      const playingAs = board.game.getPlayingAs() === 1 ? 'w' : board.game.getPlayingAs() === 2 ? 'b' : null;
+      return playingAs === null || fen.split(' ')[1] === playingAs;
+    }
+
+    return true;
   }
 
   let lastEngineMoveCalcStartTime = performance.now();
-  let engineMoveNeedsToBeCalculated = false;
 
-  /**
-   * @description Calculates a move based on the engine selected in the config.
-   * @param {String} fen The FEN of the position.
-   * @return {void}
-   */
-  const calcEngineMove = (fen) => {
-    const toMove = fen.split(' ')[1];
-    let playingAs = config.playingAs.value;
-    const board = document.getElementsByTagName('wc-chess-board')[0];
-    if (playingAs === 'auto') {
-      if (board?.game?.getPlayingAs) {
-        playingAs = board.game.getPlayingAs() === 1 ? 'white' : board.game.getPlayingAs() === 2 ? 'black' : 'both';
-      } else {
-        playingAs = 'both';
-      }
-    }
-    if (playingAs !== 'both' && (playingAs === 'white') !== (toMove === 'w')) return false;
+  let engineLastKnownFEN = null;
+  const getEngineMove = () => {
+    const board = document.querySelector('wc-chess-board');
+
+    const fen = board.game.getFEN();
+    if (!fen || engineLastKnownFEN === fen) return;
+    engineLastKnownFEN = board.game.getFEN();
+
+    if (!isMyTurn()) return;
 
     addToConsole(`Calculating move based on engine: ${config.whichEngine.value}...`);
-    const fullMoveNumber = parseInt(fen.split(' ')[5]);
-    if (fullMoveNumber < 6) lastEngineMoveCalcStartTime = performance.now() - 5000;
-    else lastEngineMoveCalcStartTime = performance.now();
 
-    let from, to, promo;
+    if (config.autoMoveInstaMoveStart.value && parseInt(fen.split(' ')[5]) < 6) lastEngineMoveCalcStartTime = 0;
+    else lastEngineMoveCalcStartTime = performance.now();
 
     if (config.whichEngine.value === 'betafish') {
       betafishWorker.postMessage({ type: 'FEN', payload: fen });
       betafishWorker.postMessage({ type: 'GETMOVE' });
-      engineMoveNeedsToBeCalculated = false;
-      return;
     } else if (config.whichEngine.value === 'external') {
       if (!externalEngineName) {
-        addToConsole('External engine is not loaded. Please check the config.');
+        addToConsole('External engine appears to be disconnected. Please check the config.');
         return;
       }
       let goCommand = config.externalEngineGoCommand.value;
@@ -1222,646 +1042,168 @@
           }
           goCommand += ` wtime ${whiteTime} btime ${blackTime} winc ${increment} binc ${increment}`;
         } else {
-          goCommand += ' depth 22';
+          goCommand += ' depth 20';
         }
       }
       addToConsole('External engine is: ' + externalEngineName);
       externalEngineWorker.postMessage({ type: 'GETMOVE', payload: { fen: fen, go: goCommand } });
-      engineMoveNeedsToBeCalculated = false;
-      return;
     } else if (config.whichEngine.value === 'random') {
-      const legalMoves = getAllLegalMoves(fen);
+      const legalMoves = document.querySelector('wc-chess-board').game.getLegalMoves()
       const randomMove = legalMoves[Math.floor(Math.random() * legalMoves.length)];
-      from = [randomMove[0], randomMove[1]];
-      to = [randomMove[2], randomMove[3]];
 
-      from[0] = 7 - from[0];
-      to[0] = 7 - to[0];
-
-      addToConsole(`Random computed move for ${toMove === 'w' ? 'white' : 'black'}: ${xyToCoordInverted(from[0], from[1])}->${xyToCoordInverted(to[0], to[1])}`);
+      addToConsole(`Random computed move: ${randomMove.san}`);
+      handleMove(randomMove.from + randomMove.to + (randomMove.promotion ? randomMove.promotion : ''));
     } else if (config.whichEngine.value === 'cccp') {
-      const move = cccpEngine(fen);
+      const move = cccpEngine();
       if (!move) return;
-      from = [move[0], move[1]];
-      to = [move[2], move[3]];
 
-      from[0] = 7 - from[0];
-      to[0] = 7 - to[0];
-
-      promo = move[4];
-
-      addToConsole(`CCCP computed move for ${toMove === 'w' ? 'white' : 'black'}: ${xyToCoordInverted(from[0], from[1])}->${xyToCoordInverted(to[0], to[1])}`);
+      addToConsole(`CCCP computed move: ${move}`);
+      handleMove(move);
     }
-
-    if (!from || !to) return;
-
-    const uciMove = xyToCoordInverted(from[0], from[1]) + xyToCoordInverted(to[0], to[1]) + (promo ? promo : '');
-
-    engineMoveNeedsToBeCalculated = false;
-    processMove(uciMove);
   }
 
-  // https://github.com/everyonesdesign/Chess-Helper/blob/8d2b2f6e7ecbd50cc003cc791d281ca71a55baf7/app/src/chessboard/component-chessboard/index.ts
-  const getSquarePosition = (square, fromDoc = true) => {
+  const calculateDOMSquarePosition = (square, fromDoc = true) => {
     const board = document.getElementsByTagName('wc-chess-board')[0];
-    if (!board || !board.game) return;
-    const isFlipped = board.game.getOptions().flipped;
-    const coords = coordToYX(square);
+    if (!board?.game) return;
+
     const { left, top, width } = board.getBoundingClientRect();
     const squareWidth = width / 8;
     const correction = squareWidth / 2;
 
-    if (!isFlipped) {
+    const coords = coordToYX(square);
+    if (!board.game.getOptions().flipped) {
       return {
-        x: (fromDoc ? left : 0) + squareWidth * coords[0] - correction,
-        y: (fromDoc ? top : 0) + width - squareWidth * coords[1] + correction,
+        x: left + squareWidth * coords[0] - correction,
+        y: top + width - squareWidth * coords[1] + correction,
       };
     } else {
       return {
-        x: (fromDoc ? left : 0) + width - squareWidth * coords[0] + correction,
-        y: (fromDoc ? top : 0) + squareWidth * coords[1] - correction,
+        x: left + width - squareWidth * coords[0] + correction,
+        y: top + squareWidth * coords[1] - correction,
       };
     }
   }
 
-  /**
-   * @description Processes a move on chess.com.
-   * @param {String} uciMove move
-   * @returns {void}
-   */
-  const processMove = (uciMove) => {
-    let board = document.getElementsByTagName('wc-chess-board')[0];
-    if (!board?.game?.markings?.addOne || !board?.game?.markings?.removeAll) return false;
+  let handleMoveLastKnownMarking = null;
 
-    if (!config.renderHanging.value) board.game.markings.removeAll();
+  const handleMove = (uciMove) => {
+    const board = document.querySelector('wc-chess-board');
+    if (!board?.game) return false;
 
-    board.game.markings.addOne({ type: 'arrow', data: { color: '#77ff77', from: uciMove.substring(0, 2), to: uciMove.substring(2, 4) } });
+    if (!config.renderThreats.value) board.game.markings.removeAll();
 
-    if (config.autoMove.value) {
-      if (document.location.pathname === '/play/computer' && config.playingAs === 'both') {
+    const marking = { type: 'arrow', data: { color: '#77ff77', from: uciMove.substring(0, 2), to: uciMove.substring(2, 4) } };
+    if (handleMoveLastKnownMarking) board.game.markings.removeOne(handleMoveLastKnownMarking);
+    board.game.markings.addOne(marking);
+    handleMoveLastKnownMarking = marking;
+
+    if (!config.autoMove.value) {
+      return;
+    }
+
+    let max = config.autoMoveMaxRandomDelay.value, min = config.autoMoveMinRandomDelay.value;
+    if (min > max) {
+      min = max;
+    }
+
+    const delay = (Math.floor(Math.random() * (max - min)) + min) - (performance.now() - lastEngineMoveCalcStartTime);
+
+    resolveAfterMs(delay).then(() => {
+      if (['/play/computer', '/analysis'].some(p => document.location.pathname.startsWith(p))) {
         board.game.move(uciMove);
       } else {
-        const moveFinishTime = performance.now();
-        const existingDelay = moveFinishTime - lastEngineMoveCalcStartTime;
-        const targetTime = Math.floor(Math.random() * (config.autoMoveMaxRandomDelay.value - config.autoMoveMinRandomDelay.value)) + config.autoMoveMinRandomDelay.value;
-        (async _ => {
-          await resolveAfterMs(targetTime - existingDelay);
-          if (uciMove.length > 4) {
-            board.game.move({
-              from: uciMove.substring(0, 2),
-              to: uciMove.substring(2, 4),
-              promotion: uciMove.substring(4, 5),
-              animate: false,
-              userGenerated: true
-            });
-          } else {
-            const fromPos = getSquarePosition(uciMove.substring(0, 2));
-            const toPos = getSquarePosition(uciMove.substring(2, 4));
-            board.dispatchEvent(new PointerEvent('pointerdown', {
-              bubbles: true,
-              cancelable: true,
-              view: window,
-              clientX: fromPos.x,
-              clientY: fromPos.y,
-            }));
-            board.dispatchEvent(new PointerEvent('pointerup', {
-              bubbles: true,
-              cancelable: true,
-              view: window,
-              clientX: toPos.x,
-              clientY: toPos.y,
-            }));
-          }
-        })();
+        if (uciMove.length > 4) {
+          board.game.move({
+            from: uciMove.substring(0, 2),
+            to: uciMove.substring(2, 4),
+            promotion: uciMove.substring(4, 5),
+            animate: false,
+            userGenerated: true
+          });
+        } else {
+          const fromPos = calculateDOMSquarePosition(uciMove.substring(0, 2));
+          const toPos = calculateDOMSquarePosition(uciMove.substring(2, 4));
+          console.debug(`Moving from ${JSON.stringify(fromPos)} to ${JSON.stringify(toPos)}`);
+          board.dispatchEvent(new PointerEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            clientX: fromPos.x,
+            clientY: fromPos.y,
+          }));
+          board.dispatchEvent(new PointerEvent('pointerup', {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            clientX: toPos.x,
+            clientY: toPos.y,
+          }));
+        }
       }
-    }
+    });
   }
 
-  let lastGamePath = '';
-  let lastEngineNameRequestTime = 0;
 
-  /**
-   * @description The main loop that runs every 100ms.
-   * @returns {void}
-   */
-  const updateLoop = () => {
-    if (config.whichEngine.value === 'external') {
-      if (!externalEngineName && performance.now() - lastEngineNameRequestTime > 3000) {
-        externalEngineWorker.postMessage({ type: 'WHATENGINE' });
-        lastEngineNameRequestTime = performance.now();
-      }
+  let requeueLastGamePath = null;
+  let requeueAttempts = 0;
+
+  const handleRequeue = () => {
+    if (requeueLastGamePath === null) {
+      requeueLastGamePath = window.location.pathname;
+      requeueAttempts = 0;
+    } else if (requeueLastGamePath !== window.location.pathname) {
+      requeueLastGamePath = null;
     }
 
-    const board = document.getElementsByTagName('wc-chess-board')[0];
-
-    let fen;
-    if (board?.game?.getFEN) fen = board.game.getFEN();
-    if (board?.game?.getPositionInfo()?.gameOver && board.game.getPlayingAs() === (config.playingAs.value === 'white' ? 1 : 2) && config.playingAs.value !== 'both') {
-      externalEngineWorker.postMessage({ type: 'STOPIFLOCK' }); // stop the engine if we are waiting for it
-    }
-    if (config.autoQueue.value && board?.game?.getPositionInfo()?.gameOver && lastGamePath !== document.location.pathname) {
+    if (requeueLastGamePath === window.location.pathname) {
       try {
         document.querySelector('div.tabs-tab[data-tab=newGame]').click();
         document.querySelector('button[data-cy=new-game-index-play]').click();
-        lastGamePath = document.location.pathname;
       } catch {
-        // do nothing
-      }
-    }
-
-    if (!fen) return;
-
-    window[namespace].lastPos = parsePositionPieceRelations(fen);
-
-    if (config.renderHanging.value && fen !== window[namespace].lastFEN) {
-      renderHanging(fen);
-    }
-
-    if (!config.legitMode.value && config.whichEngine.value !== 'none' && (fen !== window[namespace].lastFEN || engineMoveNeedsToBeCalculated)) {
-      engineMoveNeedsToBeCalculated = true;
-      calcEngineMove(fen);
-    }
-
-    window[namespace].lastFEN = fen;
-  }
-
-  window[namespace].updateLoop = setInterval(updateLoop, 100);
-
-  /**
-   * @description Gets all legal moves for a given piece in a given position.
-   * @param {{piece: String, isProtected: boolean, protectedBy: String[], isThreatened: boolean, threatenedBy: String[]}[][]} position The position.
-   * @param {Number} y The x coordinate.
-   * @param {Number} x The y coordinate.
-   * @param {Boolean} isWhite Whether the piece is white.
-   * @returns {Array} The legal moves.
-   */
-  const getAllMovesForPiece = (position, y, x, isWhite) => {
-    let moves = [];
-
-    if (position[y][x].piece.toUpperCase() === 'P') {
-      // Check for forward move
-      let forwardY = y + (isWhite ? -1 : 1);
-      if (forwardY >= 0 && forwardY <= 7 && position[forwardY][x] === null) {
-        moves.push([forwardY, x]);
-
-        // Check for double move from starting rank
-        if ((isWhite && y === 6) || (!isWhite && y === 1)) {
-          let doubleForwardY = forwardY + (isWhite ? -1 : 1);
-          if (position[doubleForwardY][x] === null) {
-            moves.push([doubleForwardY, x]);
-          }
-        }
-      }
-
-      // Check for diagonal capture
-      let leftY = y + (isWhite ? -1 : 1);
-      let leftX = x - 1;
-      if (leftY >= 0 && leftY <= 7 && leftX >= 0 && position[leftY][leftX] !== null) {
-        moves.push([leftY, leftX]);
-      }
-
-      let rightY = y + (isWhite ? -1 : 1);
-      let rightX = x + 1;
-      if (rightY >= 0 && rightY <= 7 && rightX < 8 && position[rightY][rightX] !== null) {
-        moves.push([rightY, rightX]);
-      }
-    } else if (position[y][x].piece.toUpperCase() === 'R') {
-      // Check for horizontal moves
-      for (let i = x + 1; i < 8; i++) {
-        if (position[y][i] === null) {
-          moves.push([y, i]);
+        if (requeueAttempts.requeueAttempts > 10) {
+          requeueLastGamePath = null;
+          requeueAttempts = 0;
         } else {
-          moves.push([y, i]);
-          break;
-        }
-      }
-
-      for (let i = x - 1; i >= 0; i--) {
-        if (position[y][i] === null) {
-          moves.push([y, i]);
-        } else {
-          moves.push([y, i]);
-          break;
-        }
-      }
-
-      // Check for vertical moves
-      for (let i = y + 1; i < 8; i++) {
-        if (position[i][x] === null) {
-          moves.push([i, x]);
-        } else {
-          moves.push([i, x]);
-          break;
-        }
-      }
-
-      for (let i = y - 1; i >= 0; i--) {
-        if (position[i][x] === null) {
-          moves.push([i, x]);
-        } else {
-          moves.push([i, x]);
-          break;
-        }
-      }
-    } else if (position[y][x].piece.toUpperCase() === 'N') {
-      // Check for L-shaped moves
-      let knightMoves = [
-        [y - 2, x - 1],
-        [y - 2, x + 1],
-        [y - 1, x - 2],
-        [y - 1, x + 2],
-        [y + 1, x - 2],
-        [y + 1, x + 2],
-        [y + 2, x - 1],
-        [y + 2, x + 1],
-      ];
-
-      knightMoves.forEach(move => {
-        if (move[0] >= 0 && move[0] < 8 && move[1] >= 0 && move[1] < 8) {
-          moves.push(move);
-        }
-      });
-    } else if (position[y][x].piece.toUpperCase() === 'B') {
-      // Check for diagonal moves
-      for (let i = 1; i < 8; i++) {
-        if (y + i > 7 || x + i > 7) break;
-        if (position[y + i][x + i] === null) {
-          moves.push([y + i, x + i]);
-        } else {
-          moves.push([y + i, x + i]);
-          break;
-        }
-      }
-      for (let i = 1; i < 8; i++) {
-        if (y + i > 7 || x - i < 0) break;
-        if (position[y + i][x - i] === null) {
-          moves.push([y + i, x - i]);
-        } else {
-          moves.push([y + i, x - i]);
-          break;
-        }
-      }
-      for (let i = 1; i < 8; i++) {
-        if (y - i < 0 || x + i > 7) break;
-        if (position[y - i][x + i] === null) {
-          moves.push([y - i, x + i]);
-        } else {
-          moves.push([y - i, x + i]);
-          break;
-        }
-      }
-      for (let i = 1; i < 8; i++) {
-        if (y - i < 0 || x - i < 0) break;
-        if (position[y - i][x - i] === null) {
-          moves.push([y - i, x - i]);
-        } else {
-          moves.push([y - i, x - i]);
-          break;
-        }
-      }
-    } else if (position[y][x].piece.toUpperCase() === 'Q') {
-      // Check for horizontal moves
-      for (let i = x + 1; i < 8; i++) {
-        if (position[y][i] === null) {
-          moves.push([y, i]);
-        } else {
-          moves.push([y, i]);
-          break;
-        }
-      }
-
-      for (let i = x - 1; i >= 0; i--) {
-        if (position[y][i] === null) {
-          moves.push([y, i]);
-        } else {
-          moves.push([y, i]);
-          break;
-        }
-      }
-
-      // Check for vertical moves
-      for (let i = y + 1; i < 8; i++) {
-        if (position[i][x] === null) {
-          moves.push([i, x]);
-        } else {
-          moves.push([i, x]);
-          break;
-        }
-      }
-
-      for (let i = y - 1; i >= 0; i--) {
-        if (position[i][x] === null) {
-          moves.push([i, x]);
-        } else {
-          moves.push([i, x]);
-          break;
-        }
-      }
-
-      // Check for diagonal moves
-      for (let i = 1; i < 8; i++) {
-        if (y + i > 7 || x + i > 7) break;
-        if (position[y + i][x + i] === null) {
-          moves.push([y + i, x + i]);
-        } else {
-          moves.push([y + i, x + i]);
-          break;
-        }
-      }
-      for (let i = 1; i < 8; i++) {
-        if (y + i > 7 || x - i < 0) break;
-        if (position[y + i][x - i] === null) {
-          moves.push([y + i, x - i]);
-        } else {
-          moves.push([y + i, x - i]);
-          break;
-        }
-      }
-      for (let i = 1; i < 8; i++) {
-        if (y - i < 0 || x + i > 7) break;
-        if (position[y - i][x + i] === null) {
-          moves.push([y - i, x + i]);
-        } else {
-          moves.push([y - i, x + i]);
-          break;
-        }
-      }
-      for (let i = 1; i < 8; i++) {
-        if (y - i < 0 || x - i < 0) break;
-        if (position[y - i][x - i] === null) {
-          moves.push([y - i, x - i]);
-        } else {
-          moves.push([y - i, x - i]);
-          break;
-        }
-      }
-    } else if (position[y][x].piece.toUpperCase() === 'K') {
-      // Check for possible moves that are one square away diagonally and horizontally/vertically
-      for (let i = -1; i <= 1; i++) {
-        for (let j = -1; j <= 1; j++) {
-          // Check that move doesn't go out of the board and doesn't stay in the same place
-          if ((y + i) >= 0 && (y + i) < 8 && (x + j) >= 0 && (x + j) < 8 && !(i === 0 && j === 0)) {
-            if (!isKingInCheckAfterMove(position, y, x, y + i, x + j, isWhite)) {
-              moves.push([y + i, x + j]);
-            }
-          }
-        }
-      }
-    } else {
-      addToConsole('Unknown piece type: ' + position[y][x]);
-    }
-
-    return moves;
-  }
-
-  /**
-   * @description Returns all legal moves for a given position that checkmate
-   * @param {string} fen The FEN string of the position
-   * @returns {Array} An array of legal moves that checkmate
-   */
-  const getCheckmateMoves = (fen) => {
-    const legalMoves = getAllLegalMoves(fen);
-    const position = parsePositionPieceRelations(fen);
-    const checkmateMoves = [];
-    const isWhite = fen.split(' ')[1] === 'w';
-
-    for (let i = 0; i < legalMoves.length; i++) {
-      const [startX, startY, endX, endY] = legalMoves[i];
-      position[endX][endY] = position[startX][startY];
-      position[startX][startY] = null;
-      const isCheckmate = isKingInCheckmate(position, !isWhite, 0);
-      position[startX][startY] = position[endX][endY];
-
-      if (isCheckmate) {
-        checkmateMoves.push(legalMoves[i]);
-      }
-    }
-
-    return checkmateMoves;
-  }
-
-  const isKingInCheckmate = (position, isWhite, depth) => {
-    if (depth >= 3) return false; // Max depth reached, consider it a draw
-    const kingPosition = findKing(position, isWhite);
-    const kingMoves = getAllMovesForPiece(position, kingPosition[0], kingPosition[1], isWhite);
-    const isInCheck = isKingInCheck(position, kingPosition[0], kingPosition[1], isWhite);
-
-    if (!isInCheck) return false; // Not in check, can't be checkmate
-    if (kingMoves.length > 0) return false; // King can move out of check, not checkmate
-
-    const allMoves = getAllLegalMovesFromPosition(position, isWhite);
-    for (let i = 0; i < allMoves.length; i++) {
-      const [startY, startX, endY, endX] = allMoves[i];
-      const tempPiece = position[endY][endX];
-      position[endY][endX] = position[startY][startX];
-      position[startY][startX] = null;
-      const isCheckmate = isKingInCheckmate(position, !isWhite, depth + 1);
-      position[startY][startX] = position[endY][endX];
-      position[endY][endX] = tempPiece;
-
-      if (!isCheckmate) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  const getAllLegalMovesFromPosition = (position, isWhite) => {
-    const legalMoves = [];
-
-    for (let j = 0; j < position.length; j++) {
-      for (let i = 0; i < position[j].length; i++) {
-        const piece = position[j][i];
-        if (piece && piece.piece.toUpperCase() === (isWhite ? 'K' : 'k')) {
-          const moves = getAllMovesForPiece(position, j, i, piece.piece.toUpperCase() === piece.piece);
-          moves.forEach(move => {
-            const [y, x] = move;
-            if (isValidMove(position, j, i, y, x, piece.piece.toUpperCase() === piece.piece)) {
-              legalMoves.push([j, i, y, x]);
-            }
-          });
-        }
-      }
-    }
-
-    return legalMoves;
-  }
-
-  /**
-   * @description Returns all legal moves for a given FEN
-   * @param {string} fen The FEN string of the position
-   * @returns {Array} An array of legal moves
-   */
-  const getAllLegalMoves = (fen) => {
-    const position = parsePositionPieceRelations(fen);
-    const toMove = fen.split(' ')[1];
-    const legalMoves = [];
-
-    for (let j = 0; j < position.length; j++) {
-      for (let i = 0; i < position[j].length; i++) {
-        const piece = position[j][i];
-        if (piece && piece.piece) {
-          if (!(piece.piece.toUpperCase() === piece.piece === (toMove === 'w'))) continue;
-          const moves = getAllMovesForPiece(position, j, i, piece.piece.toUpperCase() === piece.piece);
-          moves.forEach(move => {
-            const [y, x] = move;
-            if (isValidMove(position, j, i, y, x, piece.piece.toUpperCase() === piece.piece)) {
-              legalMoves.push([j, i, y, x]);
-            }
-          });
-        }
-      }
-    }
-
-    return legalMoves;
-  }
-
-  /**
-   * @description Returns whether a given move is valid
-   * @param {{piece: String, isProtected: boolean, protectedBy: String[], isThreatened: boolean, threatenedBy: String[]}[][]} position The position array
-   * @param {number} startY The starting Y position
-   * @param {number} startX The starting X position
-   * @param {number} endY The ending Y position
-   * @param {number} endX The ending X position
-   * @param {boolean} isWhite Whether the piece is white
-   */
-  const isValidMove = (position, startY, startX, endY, endX, isWhite) => {
-    if (startY === endY && startX === endX) return false; // Can't move to the same position
-    const targetPiece = position[endY][endX];
-
-    if (targetPiece && isWhite === (targetPiece.piece.toUpperCase() === targetPiece.piece)) return false; // Can't capture same color piece
-    if (!getAllMovesForPiece(position, startY, startX, isWhite).some(([y, x]) => y === endY && x === endX)) return false; // Invalid move for piece
-    if (isKingInCheckAfterMove(position, startY, startX, endY, endX, isWhite)) return false; // Can't move king into check
-
-    return true;
-  }
-
-  /**
-   * @description Returns whether a king is in check after a move
-   * @param {{piece: String, isProtected: boolean, protectedBy: String[], isThreatened: boolean, threatenedBy: String[]}[][]} position The position array
-   * @param {number} startY The starting Y position
-   * @param {number} startX The starting X position
-   * @param {number} endY The ending Y position
-   * @param {number} endX The ending X position
-   * @param {boolean} isWhite Whether the piece is white
-   * @returns {boolean} Whether the king is in check
-   */
-  const isKingInCheckAfterMove = (position, startY, startX, endY, endX, isWhite) => {
-    const tempPiece = position[endY][endX];
-    position[endY][endX] = position[startY][startX];
-    position[startY][startX] = null;
-    const kingPosition = findKing(position, isWhite);
-    const result = isKingInCheck(position, kingPosition[0], kingPosition[1], !isWhite);
-    position[startY][startX] = position[endY][endX];
-    position[endY][endX] = tempPiece;
-    return result;
-  }
-
-  /**
-   * @description Returns the location of the king
-   * @param {{piece: String, isProtected: boolean, protectedBy: String[], isThreatened: boolean, threatenedBy: String[]}[][]} position The position array
-   * @param {boolean} isWhite Whether the piece is white
-   * @returns {number[]} The location of the king in [Y, X]
-   */
-  const findKing = (position, isWhite) => {
-    for (let y = 0; y < position.length; y++) {
-      for (let x = 0; x < position[y].length; x++) {
-        const piece = position[y][x];
-        if (piece && (piece.piece === (isWhite ? 'K' : 'k'))) {
-          console.log(position[y][x], y, x);
-          return [y, x];
+          requeueAttempts.requeueAttempts++;
         }
       }
     }
   }
 
-  /**
-   * @description Returns whether a king is in check
-   * @param {{piece: String, isProtected: boolean, protectedBy: String[], isThreatened: boolean, threatenedBy: String[]}[][]} position The position array
-   * @param {number} y The X position
-   * @param {number} x The Y position
-   * @param {boolean} isWhite Whether the piece is white
-   * @returns {boolean} Whether the king is in check
-   */
-  const isKingInCheck = (position, y, x, isWhite) => {
-    for (let j = 0; j < position.length; j++) {
-      for (let i = 0; i < position[j].length; i++) {
-        const piece = position[j][i];
-        if (piece && piece.piece.toUpperCase() !== 'K' && isWhite === (piece.piece.toUpperCase() === piece.piece)) {
-          const moves = getAllMovesForPiece(position, j, i, isWhite);
-          if (moves.some(move => move[0] === y && move[1] === x)) {
-            return true;
-          }
-        }
+  const updateLoop = () => {
+    const board = document.querySelector('wc-chess-board');
+
+    if (!board?.game) return;
+
+    if (board.game.getPositionInfo().gameOver) {
+      externalEngineWorker.postMessage({ type: 'STOP' });
+
+      if (config.autoQueue.value) {
+        handleRequeue();
       }
     }
-    return false;
+
+    if (config.renderThreats.value) {
+      renderThreats();
+    }
+
+    if (!config.legitMode.value && config.whichEngine.value !== 'none') {
+      getEngineMove();
+    }
   }
 
-  /**
-   * @description Parse the position piece relations from a FEN string
-   * @param {string} fen The FEN string
-   * @returns {{piece: String, isProtected: boolean, protectedBy: String[], isThreatened: boolean, threatenedBy: String[]}[][]} The position array, access a square with position[y][x]
-   */
-  const parsePositionPieceRelations = (fen) => {
-    const [boardState, activeColor, castlingAvailability, enPassantTarget, halfMoveClock, fullMoveNumber] = fen.split(' ');
-
-    const ranks = boardState.split("/");
-    let position = [];
-
-    if (!ranks.length) return null;
-
-    // Loop through the ranks and files to populate the board position
-    for (let i = 0; i < ranks.length; i++) {
-      let rank = ranks[i];
-      let row = [];
-      for (let j = 0; j < rank.length; j++) {
-        const char = rank.charAt(j);
-        if (!isNaN(char)) {
-          for (let k = 0; k < parseInt(char); k++) {
-            row.push(null);
-          }
-        } else {
-          row.push({ piece: char, isProtected: false, protectedBy: [], isThreatened: false, threatenedBy: [] });
-        }
-      }
-      position.push(row)
-    }
-
-    // Find the positions of unprotected and threatened pieces
-    for (let i = 0; i < position.length; i++) {
-      for (let j = 0; j < position[i].length; j++) {
-        const tile = position[i][j];
-        if (tile) {
-          const isWhite = tile.piece.toUpperCase() === tile.piece;
-          const moves = getAllMovesForPiece(position, i, j, isWhite);
-          for (let move of moves) {
-            const [y, x] = move;
-            const targetTile = position[y][x];
-            if (targetTile) {
-              const isTargetWhite = targetTile.piece.toUpperCase() === targetTile.piece;
-              if (isTargetWhite === isWhite) {
-                targetTile.isProtected = true;
-                targetTile.protectedBy.push([i, j, tile.piece.toLowerCase()]);
-              } else {
-                targetTile.isThreatened = true;
-                targetTile.threatenedBy.push([i, j, tile.piece.toLowerCase()]);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    return position;
-  }
+  window[namespace].updateLoop = setInterval(updateLoop, 20);
 
   document.addEventListener('readystatechange', () => {
     if (document.readyState === 'interactive') {
       configInitializer();
       init();
-      document.addEventListener('keydown', keyPressEventListener);
+      document.addEventListener('keydown', e => {
+        if (e.altKey && e.key === 'k') {
+          e.preventDefault();
+          toggleMainDisplay();
+        }
+      });
     }
   });
 })();
