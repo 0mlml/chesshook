@@ -3,7 +3,7 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require		  https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     1.5.3
+// @version     1.5.4
 // @author      0mlml
 // @description Chess.com Cheat Userscript
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -1199,7 +1199,7 @@
     const delay = (Math.floor(Math.random() * (max - min)) + min) - (performance.now() - lastEngineMoveCalcStartTime);
 
     resolveAfterMs(delay).then(() => {
-      if (['/play/computer', '/analysis', '/puzzles', '/daily-chess-puzzle'].some(p => document.location.pathname.startsWith(p))) {
+      if (['/play/computer', '/analysis'].some(p => document.location.pathname.startsWith(p))) {
         board.game.move(uciMove);
       } else {
         if (uciMove.length > 4) {
