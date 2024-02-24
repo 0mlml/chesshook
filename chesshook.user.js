@@ -396,6 +396,24 @@
           elem.type = 'color';
           elem.value = config[k].value;
           break;
+        case 'hotkey':
+          elem = document.createElement('input');
+          elem.type = 'text';
+          elem.value = config[k].value;
+          elem.readOnly = true;
+          elem.addEventListener('focus', () => {
+            const onKeydown = (e) => {
+              if (['Control', 'Shift', 'Alt'].includes(e.key)) return;
+              e.preventDefault();
+              const key = (e.ctrlKey ? 'Ctrl+' : '') + (e.shiftKey ? 'Shift+' : '') + (e.altKey ? 'Alt+' : '') + e.key.toUpperCase();
+              elem.value = key;
+              config[k].value = key;
+              elem.blur();
+              document.removeEventListener('keydown', onKeydown);
+            };
+            document.addEventListener('keydown', onKeydown);
+          });
+          break;
       }
       elem.title = config[k].helptext;
       elem.id = namespace + config[k].key;
@@ -434,6 +452,14 @@
   window[namespace] = {};
 
   const config = {
+    windowHotkey: {
+      key: namespace + '_windowhotkey',
+      type: 'hotkey',
+      display: 'Window Hotkey',
+      helptext: 'The hotkey to toggle the window',
+      value: 'Alt+K',
+      action: toggleMainDisplay
+    },
     renderThreats: {
       key: namespace + '_renderThreats',
       type: 'checkbox',
@@ -472,6 +498,19 @@
       helptext: 'The color to render mates in',
       value: '#ff0000',
       showOnlyIf: () => config.renderThreats.value
+    },
+    clearArrowsKey: {
+      key: namespace + '_clearArrowsKey',
+      type: 'hotkey',
+      display: 'Clear Arrows Hotkey',
+      helptext: 'The hotkey to clear arrows',
+      value: 'Alt+L',
+      action: () => {
+        const board = document.querySelector('wc-chess-board');
+        if (!board) return;
+
+        board.game.markings.removeAll();
+      }
     },
     autoQueue: {
       key: namespace + '_autoqueue',
@@ -1244,15 +1283,41 @@
 
   window[namespace].updateLoop = setInterval(updateLoop, 20);
 
+  const hotkeyHandler = (e) => {
+    for (const key of Object.keys(config)) {
+      const item = config[key];
+      if (item.type !== 'hotkey') continue;
+
+      const hotkeyParts = item.value.split('+');
+      const keyName = hotkeyParts.pop();
+      const modifiers = hotkeyParts.reduce((acc, part) => {
+        acc[part.toLowerCase()] = true;
+        return acc;
+      }, {});
+
+      if (
+        (modifiers.alt && !e.altKey) ||
+        (modifiers.ctrl && !e.ctrlKey) ||
+        (modifiers.shift && !e.shiftKey) ||
+        (keyName.toUpperCase() !== e.key.toUpperCase())
+      ) {
+        continue;
+      }
+
+      e.preventDefault();
+
+      if (typeof item.action === 'function') {
+        item.action();
+      }
+    }
+  }
+
   document.addEventListener('readystatechange', () => {
     if (document.readyState === 'interactive') {
       configInitializer();
       init();
       document.addEventListener('keydown', e => {
-        if (e.altKey && e.key === 'k') {
-          e.preventDefault();
-          toggleMainDisplay();
-        }
+        hotkeyHandler(e);
       });
     }
   });
