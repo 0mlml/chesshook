@@ -3,7 +3,7 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require		  https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     1.4.2
+// @version     1.5.2
 // @author      0mlml
 // @description Chess.com Cheat Userscript
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -30,6 +30,9 @@
         break;
       case 'number':
         config[configKey].value = Number(input.target.value);
+        break;
+      case 'color':
+        config[configKey].value = input.target.value;
         break;
       case 'hidden':
         config[configKey].value = input.value;
@@ -101,7 +104,6 @@
             break;
           default:
             config[k].value = stored;
-
         }
     }
   }
@@ -190,7 +192,7 @@
   }
 
   const createMainWindow = () => {
-    let css = `div#chesshook_windowmain{overflow:auto;resize:both;position:fixed;min-height:30vh;min-width:30vw;aspect-ratio:1.7;background:#000;display:none;flex-direction:column;align-items:center;z-index:10000990;box-shadow:0 0 10px #000;border-radius:2px;border:2px solid #222;color:#ccc;font-family:monospace}div#chesshook_windowmain button{background-color:#000;color:#ccc;margin:0 0 0 .5vw}span#chesshook_windowmain_headerbar{top:0;left:0;margin:0;width:100%;height:3vh;background:#828282;display:flex;flex-direction:column;cursor:move}span#chesshook_windowmain_topdecoline{width:100%;height:10%;margin:0;padding:0;background:linear-gradient(to right,red,orange,#ff0,green,#00f,indigo,violet)}div#chesshook_windowmain_tabs{width:100%;height:90%;margin:0;padding:0;background-color:#000;border-bottom:2px solid #222;display:flex;flex-direction:row;cursor:move}div#chesshook_windowmain_tabs_title{margin:0;padding:0;display:flex;align-items:center;align-content:center;user-select:none;flex-grow:1000}div#chesshook_windowmain_tabs_x{height:calc(100%-3px);background:#222;aspect-ratio:1;margin:0;padding:0;display:flex;align-items:center;align-content:center;justify-content:center;cursor:pointer;border:2px solid #222;border-radius:5px}div#chesshook_windowmain_menutoggle{display:block;-webkit-user-select:none;user-select:none;height:calc(100%-3px);aspect-ratio:1;margin:0;padding:3px}div#chesshook_windowmain_menutoggle input{display:block;width:40px;height:32px;position:absolute;top:-7px;left:-5px;cursor:pointer;opacity:0;z-index:10000994;-webkit-touch-callout:none}ul#chesshook_windowmain_menutoggle_menu{margin:0;list-style-type:none;-webkit-font-smoothing:antialiased;opacity:0;transition:opacity .5s cubic-bezier(.77, .2, .05, 1);width:7vw;background-color:#000;position:absolute;top:3vh;left:0;border:2px solid #222;border-radius:5px;padding:0;flex-direction:column;align-items:stretch;z-index:10000991;visibility:hidden}div#chesshook_consolevp,div#chesshook_controlpanelvp{flex-direction:column;height:100%;width:100%;overflow-y:scroll}ul#chesshook_windowmain_menutoggle_menu>li{height:3.5vh;background-color:#000;border-bottom:2px solid #222;text-align:center;line-height:3.5vh;font-size:1.75vh;color:#fff;font-family:monospace;user-select:none;cursor:pointer;text-decoration:none}div#chesshook_windowmain_menutoggle span{display:block;width:24px;height:3px;margin-bottom:3px;position:relative;background:#cdcdcd;border-radius:3px;z-index:10000992;transform-origin:4px 0px;transition:transform .5s cubic-bezier(.77, .2, .05, 1),background .5s cubic-bezier(.77, .2, .05, 1),opacity .55s}div#chesshook_windowmain_menutoggle span:first-child{transform-origin:0% 0%}div#chesshook_windowmain_menutoggle span:nth-last-child(2){transform-origin:0% 100%}div#chesshook_windowmain_menutoggle input:checked~span{opacity:1;transform:rotate(45deg) translate(-2px,-1px)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(3){opacity:0;transform:rotate(0) scale(.2,.2)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(2){transform:rotate(-45deg) translate(0,-1px)}div#chesshook_windowmain_menutoggle input:checked~ul{opacity:1;visibility:visible}div#chesshook_windowmain_viewportcontainer{width:100%;height:90%;position:absolute;margin:0;padding:0;top:10%;left:0}div#chesshook_settingsvp{width:100%;height:100%;overflow-y:scroll;display:none;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:center}div#chesshook_controlpanelvp{display:none}table#chesshook_settingsvp_table{width:100%;height:100%;display:flex;flex-direction:column;align-items:stretch;align-content:stretch}table#chesshook_settingsvp_table>tr{display:flex;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:flex-start;border-bottom:2px solid #222}table#chesshook_settingsvp_table>tr>label{padding-right:5px}div#chesshook_windowmain textarea{width:100%;height:45%;resize:none;overflow-y:scroll;background-color:#000;color:#fff;font-family:monospace;font-size:1.5vh;border:2px solid #222;border-radius:5px;padding:5px}`;
+    let css = `div#chesshook_windowmain{overflow:auto;resize:both;position:fixed;min-height:30vh;min-width:30vw;aspect-ratio:1.7;background:#000;display:none;flex-direction:column;align-items:center;z-index:10000990;box-shadow:0 0 10px #000;border-radius:2px;border:2px solid #222;color:#ccc;font-family:monospace}div#chesshook_windowmain button{background-color:#000;color:#ccc;margin:0 0 0 .5vw}span#chesshook_windowmain_headerbar{top:0;left:0;margin:0;width:100%;height:3vh;background:#828282;display:flex;flex-direction:column;cursor:move}span#chesshook_windowmain_topdecoline{width:100%;height:10%;margin:0;padding:0;background:linear-gradient(to right,red,orange,#ff0,green,#00f,indigo,violet)}div#chesshook_windowmain_tabs{width:100%;height:90%;margin:0;padding:0;background-color:#000;border-bottom:2px solid #222;display:flex;flex-direction:row;cursor:move}div#chesshook_windowmain_tabs_title{margin:0;padding:0;display:flex;align-items:center;align-content:center;user-select:none;flex-grow:1000}div#chesshook_windowmain_tabs_x{height:calc(100%-3px);background:#222;aspect-ratio:1;margin:0;padding:0;display:flex;align-items:center;align-content:center;justify-content:center;cursor:pointer;border:2px solid #222;border-radius:5px}div#chesshook_windowmain_menutoggle{display:block;-webkit-user-select:none;user-select:none;height:calc(100%-3px);aspect-ratio:1;margin:0;padding:3px}div#chesshook_windowmain_menutoggle input{display:block;width:40px;height:32px;position:absolute;top:-7px;left:-5px;cursor:pointer;opacity:0;z-index:10000994;-webkit-touch-callout:none}ul#chesshook_windowmain_menutoggle_menu{margin:0;list-style-type:none;-webkit-font-smoothing:antialiased;opacity:0;transition:opacity .5s cubic-bezier(.77, .2, .05, 1);width:7vw;background-color:#000;position:absolute;top:3vh;left:0;border:2px solid #222;border-radius:5px;padding:0;flex-direction:column;align-items:stretch;z-index:10000991;visibility:hidden}div#chesshook_consolevp,div#chesshook_controlpanelvp{flex-direction:column;height:100%;width:100%;overflow-y:scroll}ul#chesshook_windowmain_menutoggle_menu>li{height:3.5vh;background-color:#000;border-bottom:2px solid #222;text-align:center;line-height:3.5vh;font-size:1.75vh;color:#fff;font-family:monospace;user-select:none;cursor:pointer;text-decoration:none}div#chesshook_windowmain_menutoggle span{display:block;width:24px;height:3px;margin-bottom:3px;position:relative;background:#cdcdcd;border-radius:3px;z-index:10000992;transform-origin:4px 0px;transition:transform .5s cubic-bezier(.77, .2, .05, 1),background .5s cubic-bezier(.77, .2, .05, 1),opacity .55s}div#chesshook_windowmain_menutoggle span:first-child{transform-origin:0% 0%}div#chesshook_windowmain_menutoggle span:nth-last-child(2){transform-origin:0% 100%}div#chesshook_windowmain_menutoggle input:checked~span{opacity:1;transform:rotate(45deg) translate(-2px,-1px)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(3){opacity:0;transform:rotate(0) scale(.2,.2)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(2){transform:rotate(-45deg) translate(0,-1px)}div#chesshook_windowmain_menutoggle input:checked~ul{opacity:1;visibility:visible}div#chesshook_windowmain_viewportcontainer{width:100%;height:90%;position:absolute;margin:0;padding:0;top:10%;left:0}div#chesshook_settingsvp{width:100%;height:100%;overflow-y:scroll;display:none;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:center}div#chesshook_controlpanelvp{display:none}table#chesshook_settingsvp_table{width:100%;height:100%;display:flex;flex-direction:column;align-items:stretch;align-content:stretch}table#chesshook_settingsvp_table>tr{display:flex;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:flex-start;border-bottom:2px solid #222}table#chesshook_settingsvp_table>tr>label{padding-right:5px}div#chesshook_windowmain textarea{width:100%;height:45%;resize:none;overflow-y:scroll;background-color:#000;color:#fff;font-family:monospace;font-size:1.5vh;border:2px solid #222;border-radius:5px;padding:5px}div#chesshook_windowmain input[type=color]{-webkit-appearance:none;appearance:none;border:none;height:90%}div#chesshook_windowmain input[type=color]::-webkit-color-swatch-wrapper{padding:0}div#chesshook_windowmain input[type=color]::-webkit-color-swatch{border:none}`;
     const styleSheetNode = document.createElement('style');
 
     if (styleSheetNode.styleSheet) styleSheetNode.styleSheet.cssText = css;
@@ -389,6 +391,11 @@
           elem.step = config[k].step;
           elem.value = config[k].value;
           break;
+        case 'color':
+          elem = document.createElement('input');
+          elem.type = 'color';
+          elem.value = config[k].value;
+          break;
       }
       elem.title = config[k].helptext;
       elem.id = namespace + config[k].key;
@@ -434,6 +441,38 @@
       helptext: 'Render mates, undefended pieces, underdefended pieces, and pins.',
       value: true
     },
+    renderThreatsPinColor: {
+      key: namespace + '_renderThreatsPinColor',
+      type: 'color',
+      display: 'Pin Color',
+      helptext: 'The color to render pins in',
+      value: '#3333ff',
+      showOnlyIf: () => config.renderThreats.value
+    },
+    renderThreatsUndefendedColor: {
+      key: namespace + '_renderThreatsUndefendedColor',
+      type: 'color',
+      display: 'Undefended Color',
+      helptext: 'The color to render undefended pieces in',
+      value: '#ffff00',
+      showOnlyIf: () => config.renderThreats.value
+    },
+    renderThreatsUnderdefendedColor: {
+      key: namespace + '_renderThreatsUnderdefendedColor',
+      type: 'color',
+      display: 'Underdefended Color',
+      helptext: 'The color to render underdefended pieces in',
+      value: '#ff6666',
+      showOnlyIf: () => config.renderThreats.value
+    },
+    renderThreatsMateColor: {
+      key: namespace + '_renderThreatsMateColor',
+      type: 'color',
+      display: 'Mate Color',
+      helptext: 'The color to render mates in',
+      value: '#ff0000',
+      showOnlyIf: () => config.renderThreats.value
+    },
     autoQueue: {
       key: namespace + '_autoqueue',
       type: 'checkbox',
@@ -455,6 +494,14 @@
       helptext: 'What color to calculate moves for',
       value: 'both',
       options: ['both', 'white', 'black', 'auto'],
+      showOnlyIf: () => !config.legitMode.value
+    },
+    engineMoveColor: {
+      key: namespace + '_enginemovecolor',
+      type: 'color',
+      display: 'Engine Move Color',
+      helptext: 'The color to render the engine\'s move in',
+      value: '#77ff77',
       showOnlyIf: () => !config.legitMode.value
     },
     whichEngine: {
@@ -607,7 +654,6 @@
           self.intermediaryVersionString = response;
           self.postMessage({ type: 'MESSAGE', payload: 'Connected to engine intermediary version ' + response });
           let parts = response.split('v');
-          console.log(response)
           if (!parts[1] || parseInt(parts[1]) < minIntermediaryVersion) {
             self.postMessage({ type: 'ERROR', payload: 'Engine intermediary version is too old or did not provide a valid version string. Please update it.' });
             self.closeWs();
@@ -764,7 +810,7 @@
     }
 
     if (e.data.type === 'DEBUG') {
-      console.log(e.data.payload);
+      console.debug(e.data.payload);
       addToWebSocketOutput(e.data.payload);
     } else if (e.data.type === 'ERROR') {
       console.error(e.data.payload, e.data.err);
@@ -843,7 +889,7 @@
         const from = squareToRankFile(move & 0x7f);
         const to = squareToRankFile((move >> 7) & 0x7f);
         const promoted = (move >> 20) & 0xf;
-        const promotedString = Object.entries(betafishPieces).find(([key, value]) => value === promoted)?.[0].toLowerCase()[1] || '';
+        const promotedString = promoted !== 0 ? Object.entries(betafishPieces).find(([key, value]) => value === promoted)?.[0].toLowerCase()[1] || '' : '';
         const uciMove = coordsToUCIMoveString(from, to, promotedString);
         addToConsole(`Betafish computed best for ${toMove === 'w' ? 'white' : 'black'}: ${uciMove}`);
         handleMove(uciMove);
@@ -901,19 +947,19 @@
     const threats = board.game.getJCEGameCopy().threats();
 
     for (let pin of threats.pins) {
-      board.game.markings.addOne({ type: 'highlight', data: { color: '#33f', square: pin } });
+      board.game.markings.addOne({ type: 'highlight', data: { color: config.renderThreatsPinColor.value, square: pin } });
     }
 
     for (let undefended of threats.undefended) {
-      board.game.markings.addOne({ type: 'arrow', data: { color: '#ff0', from: undefended.substring(0, 2), to: undefended.substring(2, 4) } });
+      board.game.markings.addOne({ type: 'arrow', data: { color: config.renderThreatsUndefendedColor.value, from: undefended.substring(0, 2), to: undefended.substring(2, 4) } });
     }
 
     for (let underdefended of threats.underdefended) {
-      board.game.markings.addOne({ type: 'arrow', data: { color: '#f66', from: underdefended.substring(0, 2), to: underdefended.substring(2, 4) } });
+      board.game.markings.addOne({ type: 'arrow', data: { color: config.renderThreatsUnderdefendedColor.value, from: underdefended.substring(0, 2), to: underdefended.substring(2, 4) } });
     }
 
     for (let mate of threats.mates) {
-      board.game.markings.addOne({ type: 'arrow', data: { color: '#f00', from: mate.substring(0, 2), to: mate.substring(2, 4) } });
+      board.game.markings.addOne({ type: 'arrow', data: { color: config.renderThreatsMateColor.value, from: mate.substring(0, 2), to: mate.substring(2, 4) } });
     }
   }
 
@@ -1097,7 +1143,7 @@
 
     if (!config.renderThreats.value) board.game.markings.removeAll();
 
-    const marking = { type: 'arrow', data: { color: '#77ff77', from: uciMove.substring(0, 2), to: uciMove.substring(2, 4) } };
+    const marking = { type: 'arrow', data: { color: config.engineMoveColor.value, from: uciMove.substring(0, 2), to: uciMove.substring(2, 4) } };
     if (handleMoveLastKnownMarking) board.game.markings.removeOne(handleMoveLastKnownMarking);
     board.game.markings.addOne(marking);
     handleMoveLastKnownMarking = marking;
@@ -1114,7 +1160,7 @@
     const delay = (Math.floor(Math.random() * (max - min)) + min) - (performance.now() - lastEngineMoveCalcStartTime);
 
     resolveAfterMs(delay).then(() => {
-      if (['/play/computer', '/analysis'].some(p => document.location.pathname.startsWith(p))) {
+      if (['/play/computer', '/analysis', '/puzzles', '/daily-chess-puzzle'].some(p => document.location.pathname.startsWith(p))) {
         board.game.move(uciMove);
       } else {
         if (uciMove.length > 4) {
