@@ -9,8 +9,15 @@ Chess bot userscript for chess.com
  - Note: The hotkey to toggle the window is Alt+K, but it should render by default
 
 ## Features:
+ - Puzzle solver
+   - Intercepts puzzle solutions
+   - Solves puzzles with 100% accuracy in <1 second each
+
+   ![Puzzle rating](.github/puzzles.png)
  - Render Threats
    - Utilizes some built in chess.com functions to render undefended pieces, underdefended pieces, pinned pieces, and mates
+
+    ![Threats](.github/renderthreats.png)
  - Autoqueue
    - Automatically begins a queue for a new game after the current game ends
  - Engine integration

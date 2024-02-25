@@ -3,7 +3,7 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require		  https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     1.5.4
+// @version     1.6.0
 // @author      0mlml
 // @description Chess.com Cheat Userscript
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -14,35 +14,42 @@
 (() => {
   const configChangeHandler = (input) => {
     const configKey = input.target ? Object.keys(config).find(k => namespace + config[k].key === input.target.id) : input.key;
+    const overrideValue = input.value || null;
 
     if (!configKey) return;
 
-    switch (config[configKey].type) {
-      case 'checkbox':
-        config[configKey].value = input.target.checked;
-        break;
-      case 'text':
-        config[configKey].value = input.target.value;
-        break;
-      case 'dropdown':
-        if (config[configKey].options.includes(input.target.value))
+    if (overrideValue !== null) {
+      config[configKey].value = overrideValue;
+    } else {
+      switch (config[configKey].type) {
+        case 'checkbox':
+          config[configKey].value = input.target.checked;
+          break;
+        case 'text':
           config[configKey].value = input.target.value;
-        break;
-      case 'number':
-        config[configKey].value = Number(input.target.value);
-        break;
-      case 'color':
-        config[configKey].value = input.target.value;
-        break;
-      case 'hidden':
-        config[configKey].value = input.value;
-        break;
+          break;
+        case 'dropdown':
+          if (config[configKey].options.includes(input.target.value))
+            config[configKey].value = input.target.value;
+          break;
+        case 'number':
+          config[configKey].value = Number(input.target.value);
+          break;
+        case 'color':
+          config[configKey].value = input.target.value;
+          break;
+        case 'hidden':
+          config[configKey].value = input.value;
+          break;
+      }
     }
 
     window.localStorage.setItem(config[configKey].key, config[configKey].value);
 
     renderConfigChanges();
-    handleConfigChanges(configKey);
+    if (overrideValue === null) {
+      handleConfigChanges(configKey);
+    }
   }
 
   const handleConfigChanges = (key) => {
@@ -75,6 +82,17 @@
 
     if (key === 'externalEnginePasskey') {
       externalEngineWorker.postMessage({ type: 'AUTH', payload: config.externalEnginePasskey.value });
+    }
+
+    if (config.puzzleMode.value) {
+      configChangeHandler({ key: 'whichEngine', value: 'none' });
+      configChangeHandler({ key: 'autoMove', value: false });
+    }
+
+    if (config.legitMode.value) {
+      configChangeHandler({ key: 'whichEngine', value: 'none' });
+      configChangeHandler({ key: 'autoMove', value: false });
+      configChangeHandler({ key: 'puzzleMode', value: false });
     }
   }
 
@@ -533,7 +551,7 @@
       helptext: 'What color to calculate moves for',
       value: 'both',
       options: ['both', 'white', 'black', 'auto'],
-      showOnlyIf: () => !config.legitMode.value
+      showOnlyIf: () => !config.legitMode.value && !config.puzzleMode.value
     },
     engineMoveColor: {
       key: namespace + '_enginemovecolor',
@@ -541,16 +559,16 @@
       display: 'Engine Move Color',
       helptext: 'The color to render the engine\'s move in',
       value: '#77ff77',
-      showOnlyIf: () => !config.legitMode.value
+      showOnlyIf: () => !config.legitMode.value && !config.puzzleMode.value
     },
     whichEngine: {
       key: namespace + '_whichengine',
       type: 'dropdown',
       display: 'Which Engine',
       helptext: 'Which engine to use',
-      value: 'betafish',
+      value: 'none',
       options: ['none', 'betafish', 'random', 'cccp', 'external'],
-      showOnlyIf: () => !config.legitMode.value
+      showOnlyIf: () => !config.legitMode.value && !config.puzzleMode.value
     },
     betafishThinkingTime: {
       key: namespace + '_betafishthinkingtime',
@@ -568,7 +586,7 @@
       type: 'text',
       display: 'External Engine URL',
       helptext: 'The URL of the external engine',
-      value: 'http://localhost:8080',
+      value: 'ws://localhost:8080/ws',
       showOnlyIf: () => !config.legitMode.value && config.whichEngine.value === 'external'
     },
     externalEngineAutoGoCommand: {
@@ -600,8 +618,8 @@
       type: 'checkbox',
       display: 'Auto Move',
       helptext: 'Potentially bannable. Tries to randomize move times to avoid detection.',
-      value: true,
-      showOnlyIf: () => !config.legitMode.value
+      value: false,
+      showOnlyIf: () => !config.legitMode.value && !config.puzzleMode.value
     },
     autoMoveMaxRandomDelay: {
       key: namespace + '_automovemaxrandomdelay',
@@ -632,6 +650,27 @@
       helptext: 'Instantly move first 5',
       value: true,
       showOnlyIf: () => !config.legitMode.value && config.autoMove.value
+    },
+    puzzleMode: {
+      key: namespace + '_puzzleMode',
+      type: 'checkbox',
+      display: 'Solves puzzles',
+      helptext: 'Solves puzzles automatically',
+      value: false,
+    },
+    refreshHotkey: {
+      key: namespace + '_refreshhotkey',
+      type: 'hotkey',
+      display: 'Refresh Hotkey',
+      helptext: 'Force some values to reload in order to try to \'unstuck\' some features',
+      value: 'Alt+R',
+      action: () => {
+        if (window.location.pathname.startsWith('/puzzles')) {
+          window.location.reload();
+        } else {
+          engineLastKnownFEN = null;
+        }
+      }
     },
     renderWindow: {
       key: namespace + '_renderwindow',
@@ -710,19 +749,16 @@
           }
         } else if (data.startsWith('sub')) {
           if (data === 'subok') {
-            self.postMessage({ type: 'DEBUG', payload: 'Engine subscription successful' });
           } else {
             self.postMessage({ type: 'ERROR', payload: 'Engine subscription failed' });
           }
         } else if (data.startsWith('unsub')) {
           if (data === 'unsubok') {
-            self.postMessage({ type: 'DEBUG', payload: 'Engine unsubscription successful' });
           } else {
             self.postMessage({ type: 'ERROR', payload: 'Engine unsubscription failed' });
           }
         } else if (data.startsWith('lock')) {
           if (data === 'lockok') {
-            self.postMessage({ type: 'DEBUG', payload: 'Engine lock successful' });
             self.hasLock = true;
             while (self.uciQueue.length > 0) {
               self.send(self.uciQueue.shift());
@@ -732,14 +768,12 @@
           }
         } else if (data.startsWith('unlock')) {
           if (data === 'unlockok') {
-            self.postMessage({ type: 'DEBUG', payload: 'Engine unlock successful' });
             self.hasLock = false;
           } else {
             self.postMessage({ type: 'ERROR', payload: 'Engine unlock failed' });
           }
         } else if (data.startsWith('engine')) {
           self.whichEngine = data.split(' ')[1];
-          self.postMessage({ type: 'DEBUG', payload: 'Connected to engine ' + self.whichEngine });
           self.postMessage({ type: 'ENGINE', payload: self.whichEngine });
         } else if (data.startsWith('bestmove')) {
           const bestMove = data.split(' ')[1];
@@ -867,7 +901,7 @@
       addToWebSocketOutput('Attempting to authenticate with passkey ' + config.externalEnginePasskey.value);
     } else if (e.data.type === 'BESTMOVE') {
       addToConsole(`${externalEngineName} engine computed best move: ${e.data.payload}`);
-      handleMove(e.data.payload);
+      handleEngineMove(e.data.payload);
     }
   }
 
@@ -884,7 +918,6 @@
       switch (e.data.type) {
         case 'FEN':
           if (!e.data.payload) return postError('No FEN provided.');
-          self.postMessage({ type: 'DEBUG', payload: 'Betafish received FEN.' });
           self.instance.setFEN(e.data.payload);
           break;
         case 'GETMOVE':
@@ -893,7 +926,6 @@
           self.thinking = true;
           const move = self.instance.getBestMove();
           self.thinking = false;
-          self.postMessage({ type: 'DEBUG', payload: 'Betafish has finished calculating.' });
           self.postMessage({ type: 'MOVE', payload: { move, toMove: self.instance.getFEN().split(' ')[1] } });
           break;
         case 'THINKINGTIME':
@@ -931,10 +963,59 @@
         const promotedString = promoted !== 0 ? Object.entries(betafishPieces).find(([key, value]) => value === promoted)?.[0].toLowerCase()[1] || '' : '';
         const uciMove = coordsToUCIMoveString(from, to, promotedString);
         addToConsole(`Betafish computed best for ${toMove === 'w' ? 'white' : 'black'}: ${uciMove}`);
-        handleMove(uciMove);
+        handleEngineMove(uciMove);
         break;
     }
   };
+
+  const originalFetch = window.fetch;
+  window.fetch = async (...args) => {
+    const response = await originalFetch(...args);
+    const clonedResponse = response.clone();
+    clonedResponse.json().then(body => {
+      try {
+        handleInterception({ url: args[0].url || args[0] }, body);
+      } catch (ignored) {
+      }
+    }).catch(error => console.error('Fetch response clone error:', error));
+    return response;
+  };
+
+  const originalXHROpen = XMLHttpRequest.prototype.open;
+  const originalXHRSend = XMLHttpRequest.prototype.send;
+
+  XMLHttpRequest.prototype.open = function (method, url) {
+    this._url = new URL(url, window.location.origin).href;
+    originalXHROpen.apply(this, arguments);
+  };
+
+  XMLHttpRequest.prototype.send = function (body) {
+    this.addEventListener('load', () => {
+      if (this.readyState === 4 && this.status >= 200 && this.status < 300) {
+        try {
+          const responseJson = JSON.parse(this.responseText);
+          handleInterception({ url: this._url }, responseJson);
+        } catch (ignored) {
+        }
+      }
+    });
+    originalXHRSend.apply(this, arguments);
+  };
+
+  const handleInterception = (req, res) => {
+    const urlPath = new URL(req.url).pathname;
+    switch (urlPath) {
+      case '/callback/tactics/rated/next':
+        if (config.puzzleMode.value) {
+          puzzleQueue.push({
+            fen: res.initialFen,
+            moves: decodeTCN(res.tcnMoveList),
+            tagged: false,
+          });
+        }
+        break;
+    }
+  }
 
   const init = () => {
     createMainWindow();
@@ -944,6 +1025,40 @@
     if (config.externalEngineURL.value && config.whichEngine.value === 'external') {
       externalEngineWorker.postMessage({ type: 'INIT', payload: config.externalEngineURL.value });
     }
+  }
+
+  const decodeTCN = (n) => {
+    const tcnChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?{~}(^)[_]@#$,./&-*++=";
+    const pieceChars = "qnrbkp";
+    let moves = [];
+
+    for (let i = 0; i < n.length; i += 2) {
+      let move = {
+        from: null,
+        to: null,
+        drop: null,
+        promotion: null,
+      };
+
+      let o = tcnChars.indexOf(n[i]);
+      let s = tcnChars.indexOf(n[i + 1]);
+
+      if (s > 63) {
+        move.promotion = pieceChars[Math.floor((s - 64) / 3)];
+        s = o + (o < 16 ? -8 : 8) + ((s - 1) % 3) - 1;
+      }
+
+      if (o > 75) {
+        move.drop = pieceChars[o - 79];
+      } else {
+        move.from = tcnChars[o % 8] + String(Math.floor(o / 8) + 1);
+      }
+
+      move.to = tcnChars[s % 8] + String(Math.floor(s / 8) + 1);
+      moves.push(move);
+    }
+
+    return moves;
   }
 
   const getPieceValue = (piece, scoreActivity = false) => {
@@ -1142,13 +1257,13 @@
       const randomMove = legalMoves[Math.floor(Math.random() * legalMoves.length)];
 
       addToConsole(`Random computed move: ${randomMove.san}`);
-      handleMove(randomMove.from + randomMove.to + (randomMove.promotion ? randomMove.promotion : ''));
+      handleEngineMove(randomMove.from + randomMove.to + (randomMove.promotion ? randomMove.promotion : ''));
     } else if (config.whichEngine.value === 'cccp') {
       const move = cccpEngine();
       if (!move) return;
 
       addToConsole(`CCCP computed move: ${move}`);
-      handleMove(move);
+      handleEngineMove(move);
     }
   }
 
@@ -1176,7 +1291,7 @@
 
   let handleMoveLastKnownMarking = null;
 
-  const handleMove = (uciMove) => {
+  const handleEngineMove = (uciMove) => {
     const board = document.querySelector('wc-chess-board');
     if (!board?.game) return false;
 
@@ -1232,6 +1347,37 @@
     });
   }
 
+  const handlePuzzleMove = (moveObj) => {
+    const board = document.querySelector('wc-chess-board');
+    if (!board?.game) return false;
+
+    if (moveObj.promotion) {
+      board.game.move({
+        from: moveObj.from,
+        to: moveObj.to,
+        promotion: moveObj.promotion,
+        animate: false,
+        userGenerated: true
+      });
+    } else {
+      const fromPos = calculateDOMSquarePosition(moveObj.from);
+      const toPos = calculateDOMSquarePosition(moveObj.to);
+      board.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        clientX: fromPos.x,
+        clientY: fromPos.y,
+      }));
+      board.dispatchEvent(new PointerEvent('pointerup', {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        clientX: toPos.x,
+        clientY: toPos.y,
+      }));
+    }
+  }
 
   let requeueLastGamePath = null;
   let requeueAttempts = 0;
@@ -1259,6 +1405,59 @@
     }
   }
 
+  const fuzzyFensEqual = (fen1, fen2) => fen1.split(' ').slice(0, 1).join(' ') === fen2.split(' ').slice(0, 1).join(' ');
+
+  const puzzleQueue = [];
+  let lastPuzzleFEN = null;
+  let playerTurn = false;
+
+  window[namespace].getPuzzleQueue = () => puzzleQueue;
+
+  const puzzleHandler = () => {
+    const board = document.querySelector('wc-chess-board');
+    if (!board) return;
+
+    const currentFEN = board.game.getFEN();
+
+    for (let i = 0; i < puzzleQueue.length; i++) {
+      const puzzle = puzzleQueue[i];
+
+      if (fuzzyFensEqual(puzzle.fen, currentFEN)) {
+        puzzle.tagged = true;
+      }
+
+      if (puzzle.tagged) {
+        if (lastPuzzleFEN && fuzzyFensEqual(currentFEN, lastPuzzleFEN)) return;
+
+        while (puzzle.moves.length > 0 && !playerTurn) {
+          puzzle.moves.shift();
+          playerTurn = !playerTurn;
+        }
+
+        if (puzzle.moves.length > 0 && playerTurn) {
+          const move = puzzle.moves.shift();
+          handlePuzzleMove(move);
+          lastPuzzleFEN = currentFEN;
+          playerTurn = !playerTurn;
+          return;
+        } else {
+          puzzleQueue.splice(i, 1);
+          lastPuzzleFEN = null;
+          playerTurn = false;
+          break;
+        }
+      }
+    }
+  }
+
+  const clickPuzzleNext = () => {
+    const nextButton = document.querySelector('button.ui_v5-button-component:nth-child(3)');
+    const arrowIcon = nextButton?.querySelector('.arrow-right');
+    if (arrowIcon) {
+      nextButton.click();
+    }
+  }
+
   const updateLoop = () => {
     const board = document.querySelector('wc-chess-board');
 
@@ -1269,6 +1468,13 @@
 
       if (config.autoQueue.value) {
         handleRequeue();
+      }
+    }
+
+    if (document.location.pathname.startsWith('/puzzles')) {
+      if (config.puzzleMode.value) {
+        puzzleHandler();
+        clickPuzzleNext();
       }
     }
 
