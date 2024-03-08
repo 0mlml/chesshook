@@ -2,8 +2,8 @@
 // @name        Chesshook
 // @include    	https://www.chess.com/*
 // @grant       none
-// @require		  https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     1.6.0
+// @require		https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
+// @version     1.6.1
 // @author      0mlml
 // @description Chess.com Cheat Userscript
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
