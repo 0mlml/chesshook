@@ -2,7 +2,7 @@
 // @name        Chesshook
 // @include    	https://www.chess.com/*
 // @grant       none
-// @require		https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
+// @require     https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
 // @version     1.6.1
 // @author      0mlml
 // @description Chess.com Cheat Userscript
