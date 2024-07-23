@@ -3,7 +3,7 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require     https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     1.6.1
+// @version     1.6.2
 // @author      0mlml
 // @description Chess.com Cheat Userscript
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -14,7 +14,7 @@
 (() => {
   const configChangeHandler = (input) => {
     const configKey = input.target ? Object.keys(config).find(k => namespace + config[k].key === input.target.id) : input.key;
-    const overrideValue = input.value || null;
+    const overrideValue = input.value instanceof undefined ? null : input.value; 
 
     if (!configKey) return;
 
@@ -353,7 +353,7 @@
     forceDrawButton.addEventListener('click', e => {
       e.preventDefault();
       if (document.location.hostname !== 'www.chess.com') return alert('You must be on chess.com to use this feature.');
-      if (document.location.pathname !== '/play/computer') return alert('You must be on the computer play page to use this feature.');
+      if (!document.location.pathname.startsWith('/play/computer')) return alert('You must be on the computer play page to use this feature.');
       const board = document.querySelector('wc-chess-board');
       if (!board?.game?.move) return alert('You must be in a game to use this feature.');
 
@@ -1014,6 +1014,17 @@
           });
         }
         break;
+      case '/callback/tactics/challenge/puzzles':
+        if (config.puzzleMode.value) {
+          for (const puzzle of res.puzzles) {
+            puzzleQueue.push({
+              fen: puzzle.initialFen,
+              moves: decodeTCN(puzzle.tcnMoveList),
+              tagged: false,
+            });
+          }
+        }
+        break;
     }
   }
 
@@ -1392,8 +1403,8 @@
 
     if (requeueLastGamePath === window.location.pathname) {
       try {
-        document.querySelector('div.tabs-tab[data-tab=newGame]').click();
-        document.querySelector('button[data-cy=new-game-index-play]').click();
+        document.querySelector('div.tabs-tab:nth-child(2)').click();
+        document.querySelector('.create-game-component > button:nth-child(2)').click();
       } catch {
         if (requeueAttempts.requeueAttempts > 10) {
           requeueLastGamePath = null;
