@@ -2,13 +2,8 @@
 // @name        Chesshook
 // @include    	https://www.chess.com/*
 // @grant       none
-<<<<<<< HEAD
-// @require		  https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     1.6.0
-=======
 // @require     https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     1.6.2
->>>>>>> 7b79d2b (Fixes)
+// @version     1.6.3
 // @author      0mlml
 // @description Chess.com Cheat Userscript
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -19,7 +14,7 @@
 (() => {
   const configChangeHandler = (input) => {
     const configKey = input.target ? Object.keys(config).find(k => namespace + config[k].key === input.target.id) : input.key;
-    const overrideValue = input.value instanceof undefined ? null : input.value; 
+    const overrideValue = typeof input.value === undefined ? null : input.value; 
 
     if (!configKey) return;
 
