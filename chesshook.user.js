@@ -3,7 +3,7 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require     https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     1.6.3
+// @version     1.6.4
 // @author      0mlml
 // @description Chess.com Cheat Userscript
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -14,12 +14,11 @@
 (() => {
   const configChangeHandler = (input) => {
     const configKey = input.target ? Object.keys(config).find(k => namespace + config[k].key === input.target.id) : input.key;
-    const overrideValue = typeof input.value === undefined ? null : input.value; 
 
     if (!configKey) return;
 
-    if (overrideValue !== null) {
-      config[configKey].value = overrideValue;
+    if (input.value !== undefined) {
+      config[configKey].value = input.value;
     } else {
       switch (config[configKey].type) {
         case 'checkbox':
@@ -42,14 +41,12 @@
           config[configKey].value = input.value;
           break;
       }
+      handleConfigChanges(configKey);
     }
 
     window.localStorage.setItem(config[configKey].key, config[configKey].value);
 
     renderConfigChanges();
-    if (overrideValue === null) {
-      handleConfigChanges(configKey);
-    }
   }
 
   const handleConfigChanges = (key) => {
