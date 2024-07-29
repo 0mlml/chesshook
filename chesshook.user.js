@@ -3,7 +3,8 @@
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require     https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
-// @version     1.6.4
+// @require     https://raw.githubusercontent.com/0mlml/vasara/main/vasara.js
+// @version     2.0
 // @author      0mlml
 // @description Chess.com Cheat Userscript
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -12,684 +13,118 @@
 // ==/UserScript==
 
 (() => {
-  const configChangeHandler = (input) => {
-    const configKey = input.target ? Object.keys(config).find(k => namespace + config[k].key === input.target.id) : input.key;
+  const vs = vasara();
 
-    if (!configKey) return;
+  const createExploitWindow = () => {
+    const exploitWindow = vs.generateModalWindow({
+      title: 'Exploits',
+      unique: true,
+    });
 
-    if (input.value !== undefined) {
-      config[configKey].value = input.value;
-    } else {
-      switch (config[configKey].type) {
-        case 'checkbox':
-          config[configKey].value = input.target.checked;
-          break;
-        case 'text':
-          config[configKey].value = input.target.value;
-          break;
-        case 'dropdown':
-          if (config[configKey].options.includes(input.target.value))
-            config[configKey].value = input.target.value;
-          break;
-        case 'number':
-          config[configKey].value = Number(input.target.value);
-          break;
-        case 'color':
-          config[configKey].value = input.target.value;
-          break;
-        case 'hidden':
-          config[configKey].value = input.value;
-          break;
+    if (!exploitWindow) return;
+
+    exploitWindow.generateLabel({
+      text: 'Force Scholars Mate against bot: ',
+      tooltip: 'This feature simply does not work online. It will only work on the computer play page, and can be used to three crown all bots.'
+    });
+
+    exploitWindow.generateButton({
+      text: 'Force Scholars Mate',
+      callback: e => {
+        e.preventDefault();
+        if (!document.location.pathname.startsWith('/play/computer')) return alert('You must be on the computer play page to use this feature.');
+        const board = document.querySelector('wc-chess-board');
+        if (!board?.game?.move || !board?.game?.getFEN) return alert('You must be in a game to use this feature.');
+        if (parseInt(board.game.getFEN().split(' ')[5]) > 1 || board.game.getFEN().split(' ')[1] !== 'w') return alert('It must be turn 1 and white to move to use this feature.');
+
+        board.game.move('e4');
+        board.game.move('e5');
+        board.game.move('Qf3');
+        board.game.move('Nc6');
+        board.game.move('Bc4');
+        board.game.move('Nb8');
+        board.game.move('Qxf7#');
       }
-      handleConfigChanges(configKey);
-    }
+    });
 
-    window.localStorage.setItem(config[configKey].key, config[configKey].value);
+    exploitWindow.putNewline();
 
-    renderConfigChanges();
+    exploitWindow.generateLabel({
+      text: 'Force Draw against bot: ',
+      tooltip: 'This feature simply does not work online. It will only work on the computer play page.'
+    });
+
+    exploitWindow.generateButton({
+      text: 'Force Draw',
+      callback: e => {
+        e.preventDefault();
+        if (document.location.hostname !== 'www.chess.com') return alert('You must be on chess.com to use this feature.');
+        if (!document.location.pathname.startsWith('/play/computer')) return alert('You must be on the computer play page to use this feature.');
+        const board = document.querySelector('wc-chess-board');
+        if (!board?.game?.move) return alert('You must be in a game to use this feature.');
+
+        board.game.agreeDraw();
+      }
+    });
   }
 
-  const handleConfigChanges = (key) => {
-    switch (key) {
-      case 'betafishThinkingTime':
-        betafishWorker.postMessage({ type: 'THINKINGTIME', payload: Number(config.betafishThinkingTime.value) });
-        break;
-      case 'whichEngine':
-        if (config.whichEngine.value !== 'external') {
-          break;
-        }
-        if (!config.externalEngineURL.value) {
-          addToConsole('Please set the path to the external engine in the config.');
-          break;
-        }
-        externalEngineWorker.postMessage({ type: 'INIT', payload: config.externalEngineURL.value });
+  const createConfigWindow = () => {
+    vs.generateConfigWindow({
+      height: 700,
+      resizable: true
+    });
+  }
 
-        if (!config.hasWarnedAboutExternalEngine.value || config.hasWarnedAboutExternalEngine.value === 'false') {
-          addToConsole('Please note that the external engine is not for the faint of heart. It requires tinkering and the user to host the chesshook intermediary server.');
-          alert('Please note that the external engine is not for the faint of heart. It requires tinkering and the user to host the chesshook intermediary server.')
-          config.hasWarnedAboutExternalEngine.value = 'true';
-          window.localStorage.setItem(config.hasWarnedAboutExternalEngine.key, 'true');
-        }
-        break;
-    }
+  const consoleQueue = [];
+  const createConsoleWindow = () => {
+    const consoleWindow = vs.generateModalWindow({
+      title: 'Console',
+      resizable: true,
+      unique: true,
+      tag: namespace + '_consolewindowtag'
+    });
 
-    if (key === 'externalEngineURL' && config.whichEngine.value === 'external') {
-      externalEngineWorker.postMessage({ type: 'INIT', payload: config.externalEngineURL.value });
-    }
+    if (!consoleWindow) return;
 
-    if (key === 'externalEnginePasskey') {
-      externalEngineWorker.postMessage({ type: 'AUTH', payload: config.externalEnginePasskey.value });
-    }
+    consoleWindow.content.setAttribute('tag', namespace + '_consolewindowcontent');
+    consoleWindow.content.style.padding = 0;
 
-    if (config.puzzleMode.value) {
-      configChangeHandler({ key: 'whichEngine', value: 'none' });
-      configChangeHandler({ key: 'autoMove', value: false });
-    }
-
-    if (config.legitMode.value) {
-      configChangeHandler({ key: 'whichEngine', value: 'none' });
-      configChangeHandler({ key: 'autoMove', value: false });
-      configChangeHandler({ key: 'puzzleMode', value: false });
+    while (consoleQueue.length > 0) {
+      addConsoleLineElement(consoleQueue.shift());
     }
   }
 
-  const renderConfigChanges = () => {
-    if (config.renderWindow.value === 'true') document.getElementById(namespace + '_windowmain').style.display = 'flex';
-    else document.getElementById(namespace + '_windowmain').style.display = 'none';
+  const addConsoleLineElement = (text) => {
+    const consoleWindow = document.querySelector(`[tag=${namespace}_consolewindowtag]`);
+    const consoleContent = consoleWindow?.querySelector(`[tag=${namespace}_consolewindowcontent]`);
 
-    for (const k of Object.keys(config)) {
-      const element = document.getElementById(namespace + config[k].key);
-      if (!element || !config[k].showOnlyIf) continue;
-      const parentRow = element.parentElement;
-      if (config[k].showOnlyIf()) parentRow.style.display = 'block';
-      else parentRow.style.display = 'none';
+    if (!consoleWindow || !consoleContent) {
+      return console.warn('Cannot add console line');
     }
+
+    const line = document.createElement('p');
+    line.style.border = 'solid 1px';
+    line.style.width = '100%';
+    line.style.padding = '2px';
+    line.innerText = text;
+    consoleContent.appendChild(line);
   }
 
-  const configInitializer = () => {
-    for (const k of Object.keys(config)) {
-      const stored = window.localStorage.getItem(config[k].key);
-      if (stored)
-        switch (config[k].type) {
-          case 'checkbox':
-            config[k].value = stored === 'true' ? true : false;
-            break;
-          case 'number':
-            config[k].value = Number(stored);
-            break;
-          default:
-            config[k].value = stored;
-        }
-    }
-  }
+  const addToConsole = (text) => {
+    const consoleWindow = document.querySelector(`[tag=${namespace}_consolewindowtag]`);
+    const consoleContent = consoleWindow?.querySelector(`[tag=${namespace}_consolewindowcontent]`);
 
-  const toggleMainDisplay = () => {
-    const main = document.getElementById(namespace + '_windowmain');
-    if (!main) return;
-
-    if (main.style.display === 'flex') main.style.display = 'none';
-    else main.style.display = 'flex';
-
-    configChangeHandler({ key: 'renderWindow', value: main.style.display === 'flex' ? 'true' : 'false' });
-  }
-
-  const addToConsole = (text, isTrustedInput = true) => {
-    let consoleElement = document.getElementById(namespace + '_consolevp');
-    if (!consoleElement) {
-      console.info(text);
+    if (!consoleWindow || !consoleContent) {
+      consoleQueue.push(text);
       return;
     }
 
-    const logEntryElement = document.createElement('div');
-    logEntryElement.style = 'border-bottom:2px solid #333;padding-left:3px;';
-
-    if (isTrustedInput) logEntryElement.innerHTML = text;
-    else logEntryElement.innerText = text;
-
-    document.getElementById(namespace + '_consolevp').appendChild(logEntryElement);
-  }
-
-  const makeDraggable = (elem, configKey = null) => {
-    let x1 = 0, y1 = 0, x2 = 0, y2 = 0;
-
-    const draggable_mouseDown = (e) => {
-      e = e || window.event;
-      e.preventDefault();
-
-      x2 = e.clientX;
-      y2 = e.clientY;
-      document.addEventListener('mouseup', draggable_endDrag);
-      document.addEventListener('mousemove', draggable_handleDrag);
-    }
-
-    const draggable_handleDrag = (e) => {
-      e = e || window.event;
-      e.preventDefault();
-
-      x1 = x2 - e.clientX;
-      y1 = y2 - e.clientY;
-      x2 = e.clientX;
-      y2 = e.clientY;
-
-      elem.style.top = (elem.offsetTop - y1) + 'px';
-      elem.style.left = (elem.offsetLeft - x1) + 'px';
-
-      if (!configKey) return;
-      configChangeHandler({ key: configKey, value: `${elem.style.left};${elem.style.top};${elem.style.width};${elem.style.height}` });
-    }
-
-    const draggable_endDrag = () => {
-      document.removeEventListener('mousedown', draggable_endDrag);
-      document.removeEventListener('mousemove', draggable_handleDrag);
-    }
-
-    const draggable_handleResize = () => {
-      configChangeHandler({ key: configKey, value: `${elem.style.left};${elem.style.top};${elem.style.width};${elem.style.height}` });
-    }
-    if (configKey) elem.addEventListener('resize', draggable_handleResize);
-
-    if (document.getElementById(elem.id + '_headerbar')) document.getElementById(elem.id + '_headerbar').addEventListener('mousedown', draggable_mouseDown);
-    else elem.addEventListener('mousedown', draggable_mouseDown);
-  }
-
-  const switchToViewport = (viewport) => {
-    const viewportContainerDiv = document.getElementById(namespace + '_windowmain_viewportcontainer');
-    const viewportDiv = document.getElementById(namespace + '_' + viewport);
-
-    if (!viewportContainerDiv || !viewportDiv) return;
-
-    viewportContainerDiv.childNodes.forEach(el => {
-      el.style.display = 'none';
-    });
-    viewportDiv.style.display = 'flex';
-
-    configChangeHandler({ key: 'lastViewport', value: viewport });
-  }
-
-  const createMainWindow = () => {
-    let css = `div#chesshook_windowmain{overflow:auto;resize:both;position:fixed;min-height:30vh;min-width:30vw;aspect-ratio:1.7;background:#000;display:none;flex-direction:column;align-items:center;z-index:10000990;box-shadow:0 0 10px #000;border-radius:2px;border:2px solid #222;color:#ccc;font-family:monospace}div#chesshook_windowmain button{background-color:#000;color:#ccc;margin:0 0 0 .5vw}span#chesshook_windowmain_headerbar{top:0;left:0;margin:0;width:100%;height:3vh;background:#828282;display:flex;flex-direction:column;cursor:move}span#chesshook_windowmain_topdecoline{width:100%;height:10%;margin:0;padding:0;background:linear-gradient(to right,red,orange,#ff0,green,#00f,indigo,violet)}div#chesshook_windowmain_tabs{width:100%;height:90%;margin:0;padding:0;background-color:#000;border-bottom:2px solid #222;display:flex;flex-direction:row;cursor:move}div#chesshook_windowmain_tabs_title{margin:0;padding:0;display:flex;align-items:center;align-content:center;user-select:none;flex-grow:1000}div#chesshook_windowmain_tabs_x{height:calc(100%-3px);background:#222;aspect-ratio:1;margin:0;padding:0;display:flex;align-items:center;align-content:center;justify-content:center;cursor:pointer;border:2px solid #222;border-radius:5px}div#chesshook_windowmain_menutoggle{display:block;-webkit-user-select:none;user-select:none;height:calc(100%-3px);aspect-ratio:1;margin:0;padding:3px}div#chesshook_windowmain_menutoggle input{display:block;width:40px;height:32px;position:absolute;top:-7px;left:-5px;cursor:pointer;opacity:0;z-index:10000994;-webkit-touch-callout:none}ul#chesshook_windowmain_menutoggle_menu{margin:0;list-style-type:none;-webkit-font-smoothing:antialiased;opacity:0;transition:opacity .5s cubic-bezier(.77, .2, .05, 1);width:7vw;background-color:#000;position:absolute;top:3vh;left:0;border:2px solid #222;border-radius:5px;padding:0;flex-direction:column;align-items:stretch;z-index:10000991;visibility:hidden}div#chesshook_consolevp,div#chesshook_controlpanelvp{flex-direction:column;height:100%;width:100%;overflow-y:scroll}ul#chesshook_windowmain_menutoggle_menu>li{height:3.5vh;background-color:#000;border-bottom:2px solid #222;text-align:center;line-height:3.5vh;font-size:1.75vh;color:#fff;font-family:monospace;user-select:none;cursor:pointer;text-decoration:none}div#chesshook_windowmain_menutoggle span{display:block;width:24px;height:3px;margin-bottom:3px;position:relative;background:#cdcdcd;border-radius:3px;z-index:10000992;transform-origin:4px 0px;transition:transform .5s cubic-bezier(.77, .2, .05, 1),background .5s cubic-bezier(.77, .2, .05, 1),opacity .55s}div#chesshook_windowmain_menutoggle span:first-child{transform-origin:0% 0%}div#chesshook_windowmain_menutoggle span:nth-last-child(2){transform-origin:0% 100%}div#chesshook_windowmain_menutoggle input:checked~span{opacity:1;transform:rotate(45deg) translate(-2px,-1px)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(3){opacity:0;transform:rotate(0) scale(.2,.2)}div#chesshook_windowmain_menutoggle input:checked~span:nth-last-child(2){transform:rotate(-45deg) translate(0,-1px)}div#chesshook_windowmain_menutoggle input:checked~ul{opacity:1;visibility:visible}div#chesshook_windowmain_viewportcontainer{width:100%;height:90%;position:absolute;margin:0;padding:0;top:10%;left:0}div#chesshook_settingsvp{width:100%;height:100%;overflow-y:scroll;display:none;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:center}div#chesshook_controlpanelvp{display:none}table#chesshook_settingsvp_table{width:100%;height:100%;display:flex;flex-direction:column;align-items:stretch;align-content:stretch}table#chesshook_settingsvp_table>tr{display:flex;flex-direction:row;align-items:stretch;align-content:stretch;justify-content:flex-start;border-bottom:2px solid #222}table#chesshook_settingsvp_table>tr>label{padding-right:5px}div#chesshook_windowmain textarea{width:100%;height:45%;resize:none;overflow-y:scroll;background-color:#000;color:#fff;font-family:monospace;font-size:1.5vh;border:2px solid #222;border-radius:5px;padding:5px}div#chesshook_windowmain input[type=color]{-webkit-appearance:none;appearance:none;border:none;height:90%}div#chesshook_windowmain input[type=color]::-webkit-color-swatch-wrapper{padding:0}div#chesshook_windowmain input[type=color]::-webkit-color-swatch{border:none}`;
-    const styleSheetNode = document.createElement('style');
-
-    if (styleSheetNode.styleSheet) styleSheetNode.styleSheet.cssText = css;
-    else styleSheetNode.appendChild(document.createTextNode(css));
-
-    const mainDiv = document.createElement('div');
-    mainDiv.id = namespace + '_windowmain';
-
-    mainDiv.appendChild(styleSheetNode);
-
-    if (config.renderWindow.value === 'true') mainDiv.style.display = 'flex';
-    else mainDiv.style.display = 'none';
-
-    mainDiv.style.left = config.windowPlot.value.split(';')[0];
-    mainDiv.style.top = config.windowPlot.value.split(';')[1];
-    mainDiv.style.width = config.windowPlot.value.split(';')[2];
-    mainDiv.style.height = config.windowPlot.value.split(';')[3];
-
-    const headerSpan = document.createElement('span');
-    headerSpan.id = namespace + '_windowmain_headerbar';
-
-    const decoLineSpanNode = document.createElement('span');
-    decoLineSpanNode.id = namespace + '_windowmain_topdecoline';
-
-    headerSpan.appendChild(decoLineSpanNode);
-
-    const tabsDiv = document.createElement('div');
-    tabsDiv.id = namespace + '_windowmain_tabs';
-
-    const menuToggleDiv = document.createElement('div');
-    menuToggleDiv.id = namespace + '_windowmain_menutoggle';
-
-    const menuToggleCheckbox = document.createElement('input');
-    menuToggleCheckbox.id = namespace + '_windowmain_menutoggle_checkbox'
-    menuToggleCheckbox.type = 'checkbox';
-    menuToggleDiv.appendChild(menuToggleCheckbox);
-
-    for (let i = 0; i < 3; i++) menuToggleDiv.appendChild(document.createElement('span'));
-
-    const navMenuUnorderedList = document.createElement('ul');
-    navMenuUnorderedList.id = namespace + '_windowmain_menutoggle_menu';
-    menuToggleDiv.appendChild(navMenuUnorderedList);
-
-    navMenuUnorderedList.addButton = (text) => {
-      const elem = document.createElement('li');
-      elem.innerText = text;
-      navMenuUnorderedList.appendChild(elem);
-      return elem;
-    }
-
-    menuToggleDiv.append(navMenuUnorderedList);
-    tabsDiv.appendChild(menuToggleDiv);
-
-    const tabsTitleDiv = document.createElement('div');
-    tabsTitleDiv.id = namespace + '_windowmain_tabs_title';
-    tabsTitleDiv.innerText = displayname + ' Console';
-    tabsDiv.appendChild(tabsTitleDiv)
-
-    const tabsXDiv = document.createElement('div');
-    tabsXDiv.id = namespace + '_windowmain_tabs_x';
-    tabsXDiv.innerText = 'x';
-    tabsXDiv.addEventListener('click', toggleMainDisplay);
-    tabsDiv.appendChild(tabsXDiv);
-
-    headerSpan.appendChild(tabsDiv);
-    mainDiv.appendChild(headerSpan);
-
-    const viewportContainerDiv = document.createElement('div');
-    viewportContainerDiv.id = namespace + '_windowmain_viewportcontainer';
-    mainDiv.appendChild(viewportContainerDiv);
-
-    viewportContainerDiv.addEventListener('click', (e) => {
-      menuToggleCheckbox.checked = false;
-    })
-
-    const consoleViewportDiv = document.createElement('div');
-    consoleViewportDiv.id = namespace + '_consolevp';
-    viewportContainerDiv.appendChild(consoleViewportDiv);
-
-    const controlPanelViewportDiv = document.createElement('div');
-    controlPanelViewportDiv.id = namespace + '_controlpanelvp';
-    viewportContainerDiv.appendChild(controlPanelViewportDiv);
-
-    const websocketOutputTextArea = document.createElement('textarea');
-    websocketOutputTextArea.id = namespace + '_websocketoutput';
-    websocketOutputTextArea.readOnly = true;
-    controlPanelViewportDiv.appendChild(websocketOutputTextArea);
-
-    const engineOutputTextArea = document.createElement('textarea');
-    engineOutputTextArea.id = namespace + '_engineoutput';
-    engineOutputTextArea.readOnly = true;
-    controlPanelViewportDiv.appendChild(engineOutputTextArea);
-
-    const requestBoardUpdateButton = document.createElement('button');
-    requestBoardUpdateButton.id = namespace + '_requestboardupdate';
-    requestBoardUpdateButton.innerText = 'Request Board Update';
-    requestBoardUpdateButton.addEventListener('click', e => {
-      e.preventDefault();
-      engineLastKnownFEN = null;
-    });
-    controlPanelViewportDiv.appendChild(requestBoardUpdateButton);
-
-    const requestEngineStopButton = document.createElement('button');
-    requestEngineStopButton.id = namespace + '_requestenginestop';
-    requestEngineStopButton.innerText = 'Request Engine Stop';
-    requestEngineStopButton.addEventListener('click', e => {
-      e.preventDefault();
-      externalEngineWorker.postMessage({ type: 'STOP' });
-    });
-    controlPanelViewportDiv.appendChild(requestEngineStopButton);
-
-    const exploitsViewportDiv = document.createElement('div');
-    exploitsViewportDiv.id = namespace + '_exploitsvp';
-    viewportContainerDiv.appendChild(exploitsViewportDiv);
-
-    const forceScholarsMateButton = document.createElement('button');
-    forceScholarsMateButton.id = namespace + '_exploitsvp_forcescholarsmate';
-    forceScholarsMateButton.innerText = 'Force Bot Scholars Mate';
-    forceScholarsMateButton.title = 'This feature simply does not work online. It will only work on the computer play page, and can be used to three crown all bots.';
-    forceScholarsMateButton.addEventListener('click', e => {
-      e.preventDefault();
-      if (!document.location.pathname.startsWith('/play/computer')) return alert('You must be on the computer play page to use this feature.');
-      const board = document.querySelector('wc-chess-board');
-      if (!board?.game?.move || !board?.game?.getFEN) return alert('You must be in a game to use this feature.');
-      if (parseInt(board.game.getFEN().split(' ')[5]) > 1 || board.game.getFEN().split(' ')[1] !== 'w') return alert('It must be turn 1 and white to move to use this feature.');
-
-      board.game.move('e4');
-      board.game.move('e5');
-      board.game.move('Qf3');
-      board.game.move('Nc6');
-      board.game.move('Bc4');
-      board.game.move('Nb8');
-      board.game.move('Qxf7#');
-    });
-    exploitsViewportDiv.appendChild(forceScholarsMateButton);
-
-    const forceDrawButton = document.createElement('button');
-    forceDrawButton.id = namespace + '_exploitsvp_forcedraw';
-    forceDrawButton.innerText = 'Force Draw Against Bot';
-    forceDrawButton.addEventListener('click', e => {
-      e.preventDefault();
-      if (document.location.hostname !== 'www.chess.com') return alert('You must be on chess.com to use this feature.');
-      if (!document.location.pathname.startsWith('/play/computer')) return alert('You must be on the computer play page to use this feature.');
-      const board = document.querySelector('wc-chess-board');
-      if (!board?.game?.move) return alert('You must be in a game to use this feature.');
-
-      board.game.agreeDraw();
-    });
-    exploitsViewportDiv.appendChild(forceDrawButton);
-
-
-    const settingsViewportDiv = document.createElement('div');
-    settingsViewportDiv.id = namespace + '_settingsvp';
-    viewportContainerDiv.appendChild(settingsViewportDiv);
-
-    const settingsTable = document.createElement('table');
-    settingsTable.id = namespace + '_settingsvp_table';
-    settingsViewportDiv.appendChild(settingsTable);
-
-    for (const k of Object.keys(config)) {
-      if (config[k].type === 'hidden') continue;
-      const tableRow = document.createElement('tr');
-      const label = document.createElement('label');
-      label.htmlFor = config[k].key;
-      label.innerText = config[k].display;
-      label.title = config[k].helptext;
-      tableRow.appendChild(label);
-
-      let elem;
-      switch (config[k].type) {
-        case 'checkbox':
-          elem = document.createElement('input');
-          elem.type = 'checkbox';
-          elem.checked = config[k].value;
-          break;
-        case 'text':
-          elem = document.createElement('input');
-          elem.type = 'text';
-          elem.value = config[k].value;
-          break;
-        case 'dropdown':
-          elem = document.createElement('select');
-          for (const opt of config[k].options) {
-            const optElem = document.createElement('option');
-            optElem.value = opt;
-            optElem.innerText = opt;
-            elem.appendChild(optElem);
-          }
-          elem.value = config[k].value;
-          break;
-        case 'number':
-          elem = document.createElement('input');
-          elem.type = 'number';
-          elem.min = config[k].min;
-          elem.max = config[k].max;
-          elem.step = config[k].step;
-          elem.value = config[k].value;
-          break;
-        case 'color':
-          elem = document.createElement('input');
-          elem.type = 'color';
-          elem.value = config[k].value;
-          break;
-        case 'hotkey':
-          elem = document.createElement('input');
-          elem.type = 'text';
-          elem.value = config[k].value;
-          elem.readOnly = true;
-          elem.addEventListener('focus', () => {
-            const onKeydown = (e) => {
-              if (['Control', 'Shift', 'Alt'].includes(e.key)) return;
-              e.preventDefault();
-              const key = (e.ctrlKey ? 'Ctrl+' : '') + (e.shiftKey ? 'Shift+' : '') + (e.altKey ? 'Alt+' : '') + e.key.toUpperCase();
-              elem.value = key;
-              config[k].value = key;
-              elem.blur();
-              document.removeEventListener('keydown', onKeydown);
-            };
-            document.addEventListener('keydown', onKeydown);
-          });
-          break;
-      }
-      elem.title = config[k].helptext;
-      elem.id = namespace + config[k].key;
-      elem.addEventListener('change', configChangeHandler);
-      tableRow.appendChild(elem);
-      settingsTable.appendChild(tableRow);
-    }
-
-    navMenuUnorderedList.addButton('Console').addEventListener('click', _ => {
-      switchToViewport('consolevp');
-    });
-
-    navMenuUnorderedList.addButton('Config').addEventListener('click', _ => {
-      switchToViewport('settingsvp');
-    });
-
-    navMenuUnorderedList.addButton('Exploits').addEventListener('click', _ => {
-      switchToViewport('exploitsvp');
-    });
-
-    navMenuUnorderedList.addButton('External').addEventListener('click', _ => {
-      switchToViewport('controlpanelvp');
-    });
-
-    document.body.appendChild(mainDiv);
-
-    switchToViewport(config.lastViewport.value);
-    makeDraggable(mainDiv, 'windowPlot');
-
-    return mainDiv;
+    addConsoleLineElement(text);
   }
 
   const namespace = 'chesshook';
-  const displayname = 'ChessHook';
 
   window[namespace] = {};
-
-  const config = {
-    windowHotkey: {
-      key: namespace + '_windowhotkey',
-      type: 'hotkey',
-      display: 'Window Hotkey',
-      helptext: 'The hotkey to toggle the window',
-      value: 'Alt+K',
-      action: toggleMainDisplay
-    },
-    renderThreats: {
-      key: namespace + '_renderThreats',
-      type: 'checkbox',
-      display: 'Render Threats',
-      helptext: 'Render mates, undefended pieces, underdefended pieces, and pins.',
-      value: true
-    },
-    renderThreatsPinColor: {
-      key: namespace + '_renderThreatsPinColor',
-      type: 'color',
-      display: 'Pin Color',
-      helptext: 'The color to render pins in',
-      value: '#3333ff',
-      showOnlyIf: () => config.renderThreats.value
-    },
-    renderThreatsUndefendedColor: {
-      key: namespace + '_renderThreatsUndefendedColor',
-      type: 'color',
-      display: 'Undefended Color',
-      helptext: 'The color to render undefended pieces in',
-      value: '#ffff00',
-      showOnlyIf: () => config.renderThreats.value
-    },
-    renderThreatsUnderdefendedColor: {
-      key: namespace + '_renderThreatsUnderdefendedColor',
-      type: 'color',
-      display: 'Underdefended Color',
-      helptext: 'The color to render underdefended pieces in',
-      value: '#ff6666',
-      showOnlyIf: () => config.renderThreats.value
-    },
-    renderThreatsMateColor: {
-      key: namespace + '_renderThreatsMateColor',
-      type: 'color',
-      display: 'Mate Color',
-      helptext: 'The color to render mates in',
-      value: '#ff0000',
-      showOnlyIf: () => config.renderThreats.value
-    },
-    clearArrowsKey: {
-      key: namespace + '_clearArrowsKey',
-      type: 'hotkey',
-      display: 'Clear Arrows Hotkey',
-      helptext: 'The hotkey to clear arrows',
-      value: 'Alt+L',
-      action: () => {
-        const board = document.querySelector('wc-chess-board');
-        if (!board) return;
-
-        board.game.markings.removeAll();
-      }
-    },
-    autoQueue: {
-      key: namespace + '_autoqueue',
-      type: 'checkbox',
-      display: 'Auto Queue',
-      helptext: 'Attempts to automatically queue for games.',
-      value: false,
-    },
-    legitMode: {
-      key: namespace + '_legitmode',
-      type: 'checkbox',
-      display: 'Legit Mode',
-      helptext: 'Prevents the script from doing anything that could be considered cheating.',
-      value: false
-    },
-    playingAs: {
-      key: namespace + '_playingas',
-      type: 'dropdown',
-      display: 'Playing As',
-      helptext: 'What color to calculate moves for',
-      value: 'both',
-      options: ['both', 'white', 'black', 'auto'],
-      showOnlyIf: () => !config.legitMode.value && !config.puzzleMode.value
-    },
-    engineMoveColor: {
-      key: namespace + '_enginemovecolor',
-      type: 'color',
-      display: 'Engine Move Color',
-      helptext: 'The color to render the engine\'s move in',
-      value: '#77ff77',
-      showOnlyIf: () => !config.legitMode.value && !config.puzzleMode.value
-    },
-    whichEngine: {
-      key: namespace + '_whichengine',
-      type: 'dropdown',
-      display: 'Which Engine',
-      helptext: 'Which engine to use',
-      value: 'none',
-      options: ['none', 'betafish', 'random', 'cccp', 'external'],
-      showOnlyIf: () => !config.legitMode.value && !config.puzzleMode.value
-    },
-    betafishThinkingTime: {
-      key: namespace + '_betafishthinkingtime',
-      type: 'number',
-      display: 'Betafish Thinking Time',
-      helptext: 'The amount of time in ms to think for each move',
-      value: 1000,
-      min: 0,
-      max: 20000,
-      step: 100,
-      showOnlyIf: () => !config.legitMode.value && config.whichEngine.value === 'betafish'
-    },
-    externalEngineURL: {
-      key: namespace + '_externalengineurl',
-      type: 'text',
-      display: 'External Engine URL',
-      helptext: 'The URL of the external engine',
-      value: 'ws://localhost:8080/ws',
-      showOnlyIf: () => !config.legitMode.value && config.whichEngine.value === 'external'
-    },
-    externalEngineAutoGoCommand: {
-      key: namespace + '_externalengineautogocommand',
-      type: 'checkbox',
-      display: 'External Engine Auto Go Command',
-      helptext: 'Automatically determine the go command based on the time left in the game',
-      value: true,
-      showOnlyIf: () => !config.legitMode.value && config.whichEngine.value === 'external'
-    },
-    externalEngineGoCommand: {
-      key: namespace + '_externalenginegocommand',
-      type: 'text',
-      display: 'External Engine Go Command',
-      helptext: 'The command to send to the external engine to start thinking',
-      value: 'go movetime 1000',
-      showOnlyIf: () => !config.legitMode.value && config.whichEngine.value === 'external' && !config.externalEngineAutoGoCommand.value
-    },
-    externalEnginePasskey: {
-      key: namespace + '_externalenginepasskey',
-      type: 'text',
-      display: 'External Engine Passkey',
-      helptext: 'The passkey to send to the external engine to authenticate',
-      value: 'passkey',
-      showOnlyIf: () => !config.legitMode.value && config.whichEngine.value === 'external'
-    },
-    autoMove: {
-      key: namespace + '_automove',
-      type: 'checkbox',
-      display: 'Auto Move',
-      helptext: 'Potentially bannable. Tries to randomize move times to avoid detection.',
-      value: false,
-      showOnlyIf: () => !config.legitMode.value && !config.puzzleMode.value
-    },
-    autoMoveMaxRandomDelay: {
-      key: namespace + '_automovemaxrandomdelay',
-      type: 'number',
-      display: 'Move time target range max',
-      helptext: 'The maximum delay in ms for automove to target',
-      value: 1000,
-      min: 0,
-      max: 20000,
-      step: 100,
-      showOnlyIf: () => !config.legitMode.value && config.autoMove.value
-    },
-    autoMoveMinRandomDelay: {
-      key: namespace + '_automoveminrandomdelay',
-      type: 'number',
-      display: 'Move time target range min',
-      helptext: 'The minimum delay in ms for automove to target',
-      value: 500,
-      min: 0,
-      max: 20000,
-      step: 100,
-      showOnlyIf: () => !config.legitMode.value && config.autoMove.value
-    },
-    autoMoveInstaMoveStart: {
-      key: namespace + '_automoveinstamovestart',
-      type: 'checkbox',
-      display: 'Speed up game start',
-      helptext: 'Instantly move first 5',
-      value: true,
-      showOnlyIf: () => !config.legitMode.value && config.autoMove.value
-    },
-    puzzleMode: {
-      key: namespace + '_puzzleMode',
-      type: 'checkbox',
-      display: 'Solves puzzles',
-      helptext: 'Solves puzzles automatically',
-      value: false,
-    },
-    refreshHotkey: {
-      key: namespace + '_refreshhotkey',
-      type: 'hotkey',
-      display: 'Refresh Hotkey',
-      helptext: 'Force some values to reload in order to try to \'unstuck\' some features',
-      value: 'Alt+R',
-      action: () => {
-        if (window.location.pathname.startsWith('/puzzles')) {
-          window.location.reload();
-        } else {
-          engineLastKnownFEN = null;
-        }
-      }
-    },
-    renderWindow: {
-      key: namespace + '_renderwindow',
-      type: 'hidden',
-      value: true
-    },
-    windowPlot: {
-      key: namespace + '_windowplot',
-      type: 'hidden',
-      value: '30px;60px;50vw;30vh'
-    },
-    lastViewport: {
-      key: namespace + '_lastviewport',
-      type: 'hidden',
-      value: 'consolevp'
-    },
-    hasWarnedAboutExternalEngine: {
-      key: namespace + '_haswarnedaboutexternalengine',
-      type: 'hidden',
-      value: false
-    },
-  };
 
   const externalEngineWorkerFunc = () => {
     const minIntermediaryVersion = 1;
@@ -894,8 +329,8 @@
       externalEngineName = e.data.payload;
       addToWebSocketOutput('Connected to ' + externalEngineName);
     } else if (e.data.type === 'NEEDAUTH') {
-      externalEngineWorker.postMessage({ type: 'AUTH', payload: config.externalEnginePasskey.value });
-      addToWebSocketOutput('Attempting to authenticate with passkey ' + config.externalEnginePasskey.value);
+      externalEngineWorker.postMessage({ type: 'AUTH', payload: vs.queryConfigKey(namespace + '_externalenginepasskey') });
+      addToWebSocketOutput('Attempting to authenticate with passkey ' + vs.queryConfigKey(namespace + '_externalenginepasskey'));
     } else if (e.data.type === 'BESTMOVE') {
       addToConsole(`${externalEngineName} engine computed best move: ${e.data.payload}`);
       handleEngineMove(e.data.payload);
@@ -1003,7 +438,7 @@
     const urlPath = new URL(req.url).pathname;
     switch (urlPath) {
       case '/callback/tactics/rated/next':
-        if (config.puzzleMode.value) {
+        if (vs.queryConfigKey(namespace + '_puzzlemode')) {
           puzzleQueue.push({
             fen: res.initialFen,
             moves: decodeTCN(res.tcnMoveList),
@@ -1012,7 +447,7 @@
         }
         break;
       case '/callback/tactics/challenge/puzzles':
-        if (config.puzzleMode.value) {
+        if (vs.queryConfigKey(namespace + '_puzzlemode')) {
           for (const puzzle of res.puzzles) {
             puzzleQueue.push({
               fen: puzzle.initialFen,
@@ -1026,12 +461,296 @@
   }
 
   const init = () => {
-    createMainWindow();
+    vs.registerConfigValue({
+      key: namespace + '_configwindowhotkey',
+      type: 'hotkey',
+      display: 'Config Window Hotkey: ',
+      description: 'The hotkey to show the conifg window',
+      value: 'Alt+K',
+      action: createConfigWindow
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_consolewindowhotkey',
+      type: 'hotkey',
+      display: 'Console Window Hotkey: ',
+      description: 'The hotkey to show the console window',
+      value: 'Alt+C',
+      action: createConsoleWindow
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_exploitwindowhotkey',
+      type: 'hotkey',
+      display: 'Exploit Window Hotkey: ',
+      description: 'The hotkey to show the exploit window',
+      value: 'Alt+L',
+      action: createExploitWindow
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_renderthreats',
+      type: 'checkbox',
+      display: 'Render Threats: ',
+      description: 'Render mates, undefended pieces, underdefended pieces, and pins.',
+      value: true
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_renderthreatspincolor',
+      type: 'color',
+      display: 'Pin Color: ',
+      description: 'The color to render pins in',
+      value: '#3333ff',
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_renderthreats')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_renderthreatsundefendedcolor',
+      type: 'color',
+      display: 'Undefended Color: ',
+      description: 'The color to render undefended pieces in',
+      value: '#ffff00',
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_renderthreats')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_renderthreatsunderdefendedcolor',
+      type: 'color',
+      display: 'Underdefended Color: ',
+      description: 'The color to render underdefended pieces in',
+      value: '#ff6666',
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_renderthreats')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_renderthreatsmatecolor',
+      type: 'color',
+      display: 'Mate Color: ',
+      description: 'The color to render mates in',
+      value: '#ff0000',
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_renderthreats')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_cleararrowskey',
+      type: 'hotkey',
+      display: 'Clear Arrows Hotkey: ',
+      description: 'The hotkey to clear arrows',
+      value: 'Alt+L',
+      action: () => {
+        const board = document.querySelector('wc-chess-board');
+        if (!board) return;
+        board.game.markings.removeAll();
+      }
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_autoqueue',
+      type: 'checkbox',
+      display: 'Auto Queue: ',
+      description: 'Attempts to automatically queue for games.',
+      value: false
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_legitmode',
+      type: 'checkbox',
+      display: 'Legit Mode: ',
+      description: 'Prevents the script from doing anything that could be considered cheating.',
+      value: false,
+      callback: () => {
+        vs.setConfigValue('whichEngine', 'none');
+        vs.setConfigValue('autoMove', false);
+        vs.setConfigValue('puzzleMode', false);
+      }
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_playingas',
+      type: 'dropdown',
+      display: 'Playing As: ',
+      description: 'What color to calculate moves for',
+      value: 'both',
+      options: ['both', 'white', 'black', 'auto'],
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && !vs.queryConfigKey(namespace + '_puzzlemode')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_enginemovecolor',
+      type: 'color',
+      display: 'Engine Move Color: ',
+      description: 'The color to render the engine\'s move in',
+      value: '#77ff77',
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && !vs.queryConfigKey(namespace + '_puzzlemode')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_whichengine',
+      type: 'dropdown',
+      display: 'Which Engine: ',
+      description: 'Which engine to use',
+      value: 'none',
+      options: ['none', 'betafish', 'random', 'cccp', 'external'],
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && !vs.queryConfigKey(namespace + '_puzzlemode'),
+      callback: () => {
+        if (vs.queryConfigKey(namespace + '_whichengine') !== 'external') {
+          return;
+        }
+        if (!vs.queryConfigKey(namespace + '_externalengineurl')) {
+          addToConsole('Please set the path to the external engine in the config.');
+          return;
+        }
+        externalEngineWorker.postMessage({ type: 'INIT', payload: vs.queryConfigKey(namespace + '_externalengineurl') });
+
+        if (!vs.queryConfigKey(namespace + '_haswarnedaboutexternalengine') || vs.queryConfigKey(namespace + '_haswarnedaboutexternalengine') === 'false') {
+          addToConsole('Please note that the external engine is not for the faint of heart. It requires tinkering and the user to host the chesshook intermediary server.');
+          alert('Please note that the external engine is not for the faint of heart. It requires tinkering and the user to host the chesshook intermediary server.')
+          vs.setConfigValue(namespace + '_haswarnedaboutexternalengine', true);
+        }
+      }
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_betafishthinkingtime',
+      type: 'number',
+      display: 'Betafish Thinking Time: ',
+      description: 'The amount of time in ms to think for each move',
+      value: 1000,
+      min: 0,
+      max: 20000,
+      step: 100,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') === 'betafish',
+      callback: () => {
+        betafishWorker.postMessage({ type: 'THINKINGTIME', payload: parseFloat(vs.queryConfigKey(namespace + '_betafishthinkingtime')) });
+      }
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_externalengineurl',
+      type: 'text',
+      display: 'External Engine URL: ',
+      description: 'The URL of the external engine',
+      value: 'ws://localhost:8080/ws',
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') === 'external',
+      callback: v => externalEngineWorker.postMessage({ type: 'INIT', payload: v })
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_externalengineautogocommand',
+      type: 'checkbox',
+      display: 'External Engine Auto Go Command: ',
+      description: 'Automatically determine the go command based on the time left in the game',
+      value: true,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') === 'external'
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_externalenginegocommand',
+      type: 'text',
+      display: 'External Engine Go Command: ',
+      description: 'The command to send to the external engine to start thinking',
+      value: 'go movetime 1000',
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') === 'external' && !vs.queryConfigKey(namespace + '_externalengineautogocommand')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_externalenginepasskey',
+      type: 'text',
+      display: 'External Engine Passkey: ',
+      description: 'The passkey to send to the external engine to authenticate',
+      value: 'passkey',
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') === 'external',
+      callback: v => externalEngineWorker.postMessage({ type: 'AUTH', payload: v })
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_automove',
+      type: 'checkbox',
+      display: 'Auto Move: ',
+      description: 'Potentially bannable. Tries to randomize move times to avoid detection.',
+      value: false,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && !vs.queryConfigKey(namespace + '_puzzlemode')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_automovemaxrandomdelay',
+      type: 'number',
+      display: 'Move time target range max: ',
+      description: 'The maximum delay in ms for automove to target',
+      value: 1000,
+      min: 0,
+      max: 20000,
+      step: 100,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_automove')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_automoveminrandomdelay',
+      type: 'number',
+      display: 'Move time target range min: ',
+      description: 'The minimum delay in ms for automove to target',
+      value: 500,
+      min: 0,
+      max: 20000,
+      step: 100,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_automove')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_automoveinstamovestart',
+      type: 'checkbox',
+      display: 'Speed up game start: ',
+      description: 'Instantly move first 5',
+      value: true,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_automove')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_puzzlemode',
+      type: 'checkbox',
+      display: 'Solves puzzles: ',
+      description: 'Solves puzzles automatically',
+      value: false,
+      callback: () => {
+        vs.setConfigValue('whichEngine', 'none');
+        vs.setConfigValue('autoMove', false);
+      }
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_refreshhotkey',
+      type: 'hotkey',
+      display: 'Refresh Hotkey: ',
+      description: 'Force some values to reload in order to try to "unstuck" some features',
+      value: 'Alt+R',
+      action: () => {
+        if (window.location.pathname.startsWith('/puzzles')) {
+          window.location.reload();
+        } else {
+          engineLastKnownFEN = null;
+        }
+      }
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_renderwindow',
+      type: 'hidden',
+      value: true
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_haswarnedaboutexternalengine',
+      type: 'hidden',
+      value: false
+    });
+
+    vs.loadPersistentState();
+
     addToConsole(`Loaded! This is version ${GM_info.script.version}`);
     addToConsole(`Github: https://github.com/0mlml/chesshook`);
-    if (config.renderWindow !== 'true') console.info('Chesshook has initialized in the background. To open the window, use the hotkey alt+k');
-    if (config.externalEngineURL.value && config.whichEngine.value === 'external') {
-      externalEngineWorker.postMessage({ type: 'INIT', payload: config.externalEngineURL.value });
+    if (vs.queryConfigKey(namespace + '_externalengineurl') && vs.queryConfigKey(namespace + '_whichengine') === 'external') {
+      externalEngineWorker.postMessage({ type: 'INIT', payload: vs.queryConfigKey(namespace + '_externalengineurl') });
     }
   }
 
@@ -1109,19 +828,19 @@
     const threats = board.game.getJCEGameCopy().threats();
 
     for (let pin of threats.pins) {
-      board.game.markings.addOne({ type: 'highlight', data: { color: config.renderThreatsPinColor.value, square: pin } });
+      board.game.markings.addOne({ type: 'highlight', data: { color: vs.queryConfigKey(namespace + '_renderthreatspincolor'), square: pin } });
     }
 
     for (let undefended of threats.undefended) {
-      board.game.markings.addOne({ type: 'arrow', data: { color: config.renderThreatsUndefendedColor.value, from: undefended.substring(0, 2), to: undefended.substring(2, 4) } });
+      board.game.markings.addOne({ type: 'arrow', data: { color: vs.queryConfigKey(namespace + '_renderthreatsundefendedcolor'), from: undefended.substring(0, 2), to: undefended.substring(2, 4) } });
     }
 
     for (let underdefended of threats.underdefended) {
-      board.game.markings.addOne({ type: 'arrow', data: { color: config.renderThreatsUnderdefendedColor.value, from: underdefended.substring(0, 2), to: underdefended.substring(2, 4) } });
+      board.game.markings.addOne({ type: 'arrow', data: { color: vs.queryConfigKey(namespace + '_renderthreatsunderdefendedcolor'), from: underdefended.substring(0, 2), to: underdefended.substring(2, 4) } });
     }
 
     for (let mate of threats.mates) {
-      board.game.markings.addOne({ type: 'arrow', data: { color: config.renderThreatsMateColor.value, from: mate.substring(0, 2), to: mate.substring(2, 4) } });
+      board.game.markings.addOne({ type: 'arrow', data: { color: vs.queryConfigKey(namespace + '_renderthreatsmatecolor'), from: mate.substring(0, 2), to: mate.substring(2, 4) } });
     }
   }
 
@@ -1192,14 +911,14 @@
     const board = document.querySelector('wc-chess-board');
     const fen = board.game.getFEN();
 
-    if (config.playingAs.value !== 'both') {
-      if ((config.playingAs.value === 'white' && fen.split(' ')[1] === 'b') ||
-        (config.playingAs.value === 'black' && fen.split(' ')[1] === 'w')) {
+    if (vs.queryConfigKey(namespace + '_playingas') !== 'both') {
+      if ((vs.queryConfigKey(namespace + '_playingas') === 'white' && fen.split(' ')[1] === 'b') ||
+        (vs.queryConfigKey(namespace + '_playingas') === 'black' && fen.split(' ')[1] === 'w')) {
         return false;
       }
     }
 
-    if (config.playingAs.value === 'auto') {
+    if (vs.queryConfigKey(namespace + '_playingas') === 'auto') {
       const playingAs = board.game.getPlayingAs() === 1 ? 'w' : board.game.getPlayingAs() === 2 ? 'b' : null;
       return playingAs === null || fen.split(' ')[1] === playingAs;
     }
@@ -1219,24 +938,24 @@
 
     if (!isMyTurn()) return;
 
-    addToConsole(`Calculating move based on engine: ${config.whichEngine.value}...`);
+    addToConsole(`Calculating move based on engine: ${vs.queryConfigKey(namespace + '_whichengine')}...`);
 
-    if (config.autoMoveInstaMoveStart.value && parseInt(fen.split(' ')[5]) < 6) lastEngineMoveCalcStartTime = 0;
+    if (vs.queryConfigKey(namespace + '_automoveinstamovestart') && parseInt(fen.split(' ')[5]) < 6) lastEngineMoveCalcStartTime = 0;
     else lastEngineMoveCalcStartTime = performance.now();
 
-    if (config.whichEngine.value === 'betafish') {
+    if (vs.queryConfigKey(namespace + '_whichengine') === 'betafish') {
       betafishWorker.postMessage({ type: 'FEN', payload: fen });
       betafishWorker.postMessage({ type: 'GETMOVE' });
-    } else if (config.whichEngine.value === 'external') {
+    } else if (vs.queryConfigKey(namespace + '_whichengine') === 'external') {
       if (!externalEngineName) {
         addToConsole('External engine appears to be disconnected. Please check the config.');
         return;
       }
-      let goCommand = config.externalEngineGoCommand.value;
-      if (!config.externalEngineAutoGoCommand.value && (!goCommand || !goCommand.includes('go'))) {
+      let goCommand = vs.queryConfigKey(namespace + '_externalengineautogocommand');
+      if (!vs.queryConfigKey(namespace + '_externalengineautogocommand') && (!goCommand || !goCommand.includes('go'))) {
         addToConsole('External engine go command is invalid. Please check the config.');
         return;
-      } else if (config.externalEngineAutoGoCommand.value) {
+      } else if (vs.queryConfigKey(namespace + '_externalengineautogocommand')) {
         goCommand = 'go';
         if (board?.game?.timeControl && board.game.timeControl.get() && board.game.timestamps.get) {
           const increment = board.game.timeControl.get().increment;
@@ -1260,13 +979,13 @@
       }
       addToConsole('External engine is: ' + externalEngineName);
       externalEngineWorker.postMessage({ type: 'GETMOVE', payload: { fen: fen, go: goCommand } });
-    } else if (config.whichEngine.value === 'random') {
+    } else if (vs.queryConfigKey(namespace + '_whichengine') === 'random') {
       const legalMoves = document.querySelector('wc-chess-board').game.getLegalMoves()
       const randomMove = legalMoves[Math.floor(Math.random() * legalMoves.length)];
 
       addToConsole(`Random computed move: ${randomMove.san}`);
       handleEngineMove(randomMove.from + randomMove.to + (randomMove.promotion ? randomMove.promotion : ''));
-    } else if (config.whichEngine.value === 'cccp') {
+    } else if (vs.queryConfigKey(namespace + '_whichengine') === 'cccp') {
       const move = cccpEngine();
       if (!move) return;
 
@@ -1303,18 +1022,18 @@
     const board = document.querySelector('wc-chess-board');
     if (!board?.game) return false;
 
-    if (!config.renderThreats.value) board.game.markings.removeAll();
+    if (!vs.queryConfigKey(namespace + '_renderthreats')) board.game.markings.removeAll();
 
-    const marking = { type: 'arrow', data: { color: config.engineMoveColor.value, from: uciMove.substring(0, 2), to: uciMove.substring(2, 4) } };
+    const marking = { type: 'arrow', data: { color: vs.queryConfigKey(namespace + '_enginemovecolor'), from: uciMove.substring(0, 2), to: uciMove.substring(2, 4) } };
     if (handleMoveLastKnownMarking) board.game.markings.removeOne(handleMoveLastKnownMarking);
     board.game.markings.addOne(marking);
     handleMoveLastKnownMarking = marking;
 
-    if (!config.autoMove.value) {
+    if (!vs.queryConfigKey(namespace + '_automove')) {
       return;
     }
 
-    let max = config.autoMoveMaxRandomDelay.value, min = config.autoMoveMinRandomDelay.value;
+    let max = vs.queryConfigKey(namespace + '_automovemaxrandomdelay'), min = vs.queryConfigKey(namespace + '_automoveminrandomdelay');
     if (min > max) {
       min = max;
     }
@@ -1474,65 +1193,32 @@
     if (board.game.getPositionInfo().gameOver) {
       externalEngineWorker.postMessage({ type: 'STOP' });
 
-      if (config.autoQueue.value) {
+      if (vs.queryConfigKey(namespace + '_autoqueue')) {
         handleRequeue();
       }
     }
 
     if (document.location.pathname.startsWith('/puzzles')) {
-      if (config.puzzleMode.value) {
+      if (vs.queryConfigKey(namespace + '_puzzlemode')) {
         puzzleHandler();
         clickPuzzleNext();
       }
     }
 
-    if (config.renderThreats.value) {
+    if (vs.queryConfigKey(namespace + '_renderthreats')) {
       renderThreats();
     }
 
-    if (!config.legitMode.value && config.whichEngine.value !== 'none') {
+    if (!vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') !== 'none') {
       getEngineMove();
     }
   }
 
   window[namespace].updateLoop = setInterval(updateLoop, 20);
 
-  const hotkeyHandler = (e) => {
-    for (const key of Object.keys(config)) {
-      const item = config[key];
-      if (item.type !== 'hotkey') continue;
-
-      const hotkeyParts = item.value.split('+');
-      const keyName = hotkeyParts.pop();
-      const modifiers = hotkeyParts.reduce((acc, part) => {
-        acc[part.toLowerCase()] = true;
-        return acc;
-      }, {});
-
-      if (
-        (modifiers.alt && !e.altKey) ||
-        (modifiers.ctrl && !e.ctrlKey) ||
-        (modifiers.shift && !e.shiftKey) ||
-        (keyName.toUpperCase() !== e.key.toUpperCase())
-      ) {
-        continue;
-      }
-
-      e.preventDefault();
-
-      if (typeof item.action === 'function') {
-        item.action();
-      }
-    }
-  }
-
   document.addEventListener('readystatechange', () => {
     if (document.readyState === 'interactive') {
-      configInitializer();
       init();
-      document.addEventListener('keydown', e => {
-        hotkeyHandler(e);
-      });
     }
   });
 })();
