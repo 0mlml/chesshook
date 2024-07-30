@@ -9,6 +9,10 @@ Chess bot userscript for chess.com
  - Note: The hotkey to toggle the window is Alt+K, but it should render by default
 
 ## Features:
+- Cool UI using my [UI library](https://github.com/0mlml/vasara/)
+
+![alt text](.github/ui.png)
+
  - Puzzle solver
    - Intercepts puzzle solutions
    - Solves puzzles with 100% accuracy in <1 second each
