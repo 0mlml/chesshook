@@ -13,7 +13,7 @@ Chess bot userscript for chess.com
    - Intercepts puzzle solutions
    - Solves puzzles with 100% accuracy in <1 second each
 
-   ![Puzzle rating](.github/puzzles.png)
+   ![Puzzle rating](.github/puzzles-new.png)
  - Render Threats
    - Utilizes some built in chess.com functions to render undefended pieces, underdefended pieces, pinned pieces, and mates
 

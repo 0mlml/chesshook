@@ -4,7 +4,7 @@
 // @grant       none
 // @require     https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
 // @require     https://raw.githubusercontent.com/0mlml/vasara/main/vasara.js
-// @version     2.0
+// @version     2.1
 // @author      0mlml
 // @description Chess.com Cheat Userscript
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -436,7 +436,55 @@
 
   const handleInterception = (req, res) => {
     const urlPath = new URL(req.url).pathname;
+
     switch (urlPath) {
+      case '/rpc/chesscom.puzzles.v1.PuzzleService/GetNextRated':
+        if (vs.queryConfigKey(namespace + '_puzzlemode')) {
+          if (res.userPuzzle && res.userPuzzle.puzzle) {
+            const puzzle = res.userPuzzle.puzzle;
+
+            const fenMatch = puzzle.pgn.match(/\[FEN "(.+?)"\]/);
+            const fen = fenMatch ? fenMatch[1] : null;
+
+            const moves = [];
+            if (puzzle.moves && Array.isArray(puzzle.moves)) {
+              for (const moveObj of puzzle.moves) {
+                if (moveObj.move) {
+                  const from = squareToAlgebraic(moveObj.move.from);
+                  const to = squareToAlgebraic(moveObj.move.to);
+
+                  const move = {
+                    from: from,
+                    to: to,
+                    promotion: null,
+                    drop: null,
+                  };
+
+                  if (moveObj.move.promotionPieceType) {
+                    const promotionMap = {
+                      'PROMOTION_PIECE_TYPE_QUEEN': 'q',
+                      'PROMOTION_PIECE_TYPE_ROOK': 'r',
+                      'PROMOTION_PIECE_TYPE_BISHOP': 'b',
+                      'PROMOTION_PIECE_TYPE_KNIGHT': 'n'
+                    };
+
+                    move.promotion = promotionMap[moveObj.move.promotionPieceType] || null;
+                  }
+
+                  moves.push(move);
+                }
+              }
+            }
+
+            puzzleQueue.push({
+              fen: fen,
+              moves: moves,
+              tagged: false,
+            });
+          }
+        }
+        break;
+
       case '/callback/tactics/rated/next':
         if (vs.queryConfigKey(namespace + '_puzzlemode')) {
           puzzleQueue.push({
@@ -753,6 +801,16 @@
       externalEngineWorker.postMessage({ type: 'INIT', payload: vs.queryConfigKey(namespace + '_externalengineurl') });
     }
   }
+
+  function squareToAlgebraic(squareEnum) {
+    if (typeof squareEnum === 'string' && squareEnum.startsWith('SQUARE_')) {
+      const file = squareEnum.charAt(7).toLowerCase();
+      const rank = squareEnum.charAt(8);
+      return file + rank;
+    }
+    return null;
+  }
+
 
   const decodeTCN = (n) => {
     const tcnChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?{~}(^)[_]@#$,./&-*++=";
@@ -1178,7 +1236,7 @@
   }
 
   const clickPuzzleNext = () => {
-    const nextButton = document.querySelector('button.ui_v5-button-component:nth-child(3)');
+    const nextButton = document.querySelector('#sidebar > section > div.rated-sidebar-footer-component > div.primary-control-buttons-component > button.cc-button-component.cc-button-primary.cc-button-large.cc-bg-primary.primary-control-buttons-half');
     const arrowIcon = nextButton?.querySelector('.arrow-right');
     if (arrowIcon) {
       nextButton.click();
