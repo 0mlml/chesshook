@@ -4,7 +4,7 @@
 // @grant       none
 // @require     https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
 // @require     https://raw.githubusercontent.com/0mlml/vasara/main/vasara.js
-// @version     2.1
+// @version     2.2
 // @author      0mlml
 // @description Chess.com Cheat Userscript
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
