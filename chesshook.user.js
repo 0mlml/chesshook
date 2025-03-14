@@ -447,9 +447,11 @@
             const fen = fenMatch ? fenMatch[1] : null;
 
             const moves = [];
+            const rawMoves = [];
             if (puzzle.moves && Array.isArray(puzzle.moves)) {
               for (const moveObj of puzzle.moves) {
                 if (moveObj.move) {
+                  rawMoves.push(moveObj.move);
                   const from = squareToAlgebraic(moveObj.move.from);
                   const to = squareToAlgebraic(moveObj.move.to);
 
@@ -476,15 +478,58 @@
               }
             }
 
-            puzzleQueue.push({
-              fen: fen,
-              moves: moves,
-              tagged: false,
-            });
+            if (vs.queryConfigKey(namespace + '_apipuzzlemode')) {
+              submitPuzzleSolution(puzzle.legacyPuzzleId, rawMoves);
+            } else {
+              puzzleQueue.push({
+                fen: fen,
+                moves: moves,
+                tagged: false,
+              });
+            }
           }
         }
         break;
+      case /\/service\/battle\/games\/.*\/puzzles/.test(urlPath) ? urlPath : '':
+        if (vs.queryConfigKey(namespace + '_puzzlemode') && res.puzzles && Array.isArray(res.puzzles)) {
+          for (const puzzle of res.puzzles) {
+            if (puzzle.initialFen) {
+              const moves = [];
 
+              if (puzzle.firstMove) {
+                const decodedMoves = decodeTCN(puzzle.firstMove);
+                if (decodedMoves.length > 0) {
+                  moves.push(...decodedMoves);
+                }
+              }
+
+              if (puzzle.secureMoves && Array.isArray(puzzle.secureMoves)) {
+                for (const secureMove of puzzle.secureMoves) {
+                  if (secureMove.move) {
+                    const decodedMoves = decodeTCN(secureMove.move);
+                    if (decodedMoves.length > 0) {
+                      moves.push(...decodedMoves);
+                    }
+                  }
+
+                  if (secureMove.counter) {
+                    const decodedCounters = decodeTCN(secureMove.counter);
+                    if (decodedCounters.length > 0) {
+                      moves.push(...decodedCounters);
+                    }
+                  }
+                }
+              }
+
+              puzzleQueue.push({
+                fen: puzzle.initialFen,
+                moves: moves,
+                tagged: false,
+              });
+            }
+          }
+        }
+        break;
       case '/callback/tactics/rated/next':
         if (vs.queryConfigKey(namespace + '_puzzlemode')) {
           puzzleQueue.push({
@@ -620,7 +665,7 @@
       display: 'Playing As: ',
       description: 'What color to calculate moves for',
       value: 'both',
-      options: ['both', 'white', 'black', 'auto'],
+      options: ['white', 'black', 'auto'],
       showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && !vs.queryConfigKey(namespace + '_puzzlemode')
     });
 
@@ -639,7 +684,7 @@
       display: 'Which Engine: ',
       description: 'Which engine to use',
       value: 'none',
-      options: ['none', 'betafish', 'random', 'cccp', 'external'],
+      options: ['betafish', 'random', 'cccp', 'external'],
       showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && !vs.queryConfigKey(namespace + '_puzzlemode'),
       callback: () => {
         if (vs.queryConfigKey(namespace + '_whichengine') !== 'external') {
@@ -765,6 +810,25 @@
         vs.setConfigValue('autoMove', false);
       }
     });
+
+    vs.registerConfigValue({
+      key: namespace + '_apipuzzlemode',
+      type: 'checkbox',
+      display: 'Use the API for puzzles: ',
+      description: 'Uses the API to solve puzzles',
+      value: false,
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_puzzlemode')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_apipuzzletimemode',
+      type: 'dropdown',
+      display: 'Puzzle Time Mode: ',
+      description: 'The time mode to use for the API puzzles',
+      value: 'zero',
+      options: ['hour', 'legit'],
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_puzzlemode') && vs.queryConfigKey(namespace + '_apipuzzlemode')
+    })
 
     vs.registerConfigValue({
       key: namespace + '_refreshhotkey',
@@ -1132,6 +1196,119 @@
     });
   }
 
+  const requestNextPuzzle = () => {
+    addToConsole(`[${namespace}] Requesting next puzzle`);
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', 'https://www.chess.com/rpc/chesscom.puzzles.v1.PuzzleService/GetNextRated', true);
+
+      xhr.setRequestHeader('accept', 'application/json');
+      xhr.setRequestHeader('accept-language', 'en-US,en;q=0.9');
+      xhr.setRequestHeader('content-type', 'application/json');
+      xhr.withCredentials = true;
+
+      xhr.onload = function () {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const result = JSON.parse(xhr.responseText);
+
+            if (result && result.userPuzzle && result.userPuzzle.puzzle) {
+              addToConsole(`[${namespace}] Successfully retrieved next puzzle: ${result.userPuzzle.puzzle.legacyPuzzleId}`);
+              resolve(result);
+            } else {
+              const errorMsg = `Failed to get next puzzle: ${result.error || 'No puzzle data in response'}`;
+              addToConsole(`[${namespace}] ${errorMsg}`);
+              reject(new Error(errorMsg));
+            }
+          } catch (e) {
+            addToConsole(`[${namespace}] Error parsing response:`, e);
+            reject(e);
+          }
+        } else {
+          addToConsole(`[${namespace}] Request failed:`, xhr.status, xhr.statusText);
+          reject(new Error(`Request failed: ${xhr.status} ${xhr.statusText}`));
+        }
+      };
+
+      xhr.onerror = function () {
+        addToConsole(`[${namespace}] Network error occurred`);
+        reject(new Error('Network error'));
+      };
+
+      xhr.ontimeout = function () {
+        addToConsole(`[${namespace}] Request timed out`);
+        reject(new Error('Request timed out'));
+      };
+
+      xhr.send('{}');
+    });
+  }
+
+  const submitPuzzleSolution = async (puzzleId, moves) => {
+    try {
+      const payload = {
+        legacyPuzzleId: puzzleId,
+        moves: moves,
+        attemptDuration: `0.2s`
+      };
+
+      switch(vs.queryConfigKey(namespace + '_apipuzzletimemode')) {
+        case 'hour':
+          payload.attemptDuration = `${(3600 + Math.random() * 1800).toFixed(3)}s`;
+          break;
+        case 'legit':
+          payload.attemptDuration = `${(15 + Math.random() * 30).toFixed(3)}s`;
+          break;
+        case 'zero':
+          payload.attemptDuration = `${0.1 + Math.random() * 0.3}s`;
+          break;
+      }
+
+      addToConsole(`[${namespace}] Submitting solution for puzzle ${puzzleId}`);
+
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', 'https://www.chess.com/rpc/chesscom.puzzles.v1.PuzzleService/SubmitRatedSolution', true);
+
+        xhr.setRequestHeader('accept', 'application/json');
+        xhr.setRequestHeader('accept-language', 'en-US,en;q=0.9');
+        xhr.setRequestHeader('content-type', 'application/json');
+
+        xhr.onload = function () {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const result = JSON.parse(xhr.responseText);
+              addToConsole(`[${namespace}] Successfully submitted solution for puzzle ${puzzleId}. ELO: ${result.userRatings[0].rating} (+${result.userRatings[0].ratingChange})`);
+              requestNextPuzzle();
+              resolve(result);
+            } catch (e) {
+              addToConsole(`[${namespace}] Error parsing response:`, e);
+              reject(e);
+            }
+          } else {
+            addToConsole(`[${namespace}] XHR request failed:`, xhr.status, xhr.statusText, xhr.responseText);
+            reject(new Error(`XHR request failed: ${xhr.status} ${xhr.statusText}`));
+          }
+        };
+
+        xhr.onerror = function () {
+          addToConsole(`[${namespace}] Network error occurred`);
+          reject(new Error('Network error'));
+        };
+
+        xhr.ontimeout = function () {
+          addToConsole(`[${namespace}] Request timed out`);
+          reject(new Error('Request timed out'));
+        };
+
+        xhr.send(JSON.stringify(payload));
+      });
+    } catch (error) {
+      addToConsole(`[${namespace}] Error submitting puzzle solution:`, error);
+    }
+  };
+
   const handlePuzzleMove = (moveObj) => {
     const board = document.querySelector('wc-chess-board');
     if (!board?.game) return false;
@@ -1198,7 +1375,7 @@
 
   window[namespace].getPuzzleQueue = () => puzzleQueue;
 
-  const puzzleHandler = () => {
+  const manualPuzzleHandler = () => {
     const board = document.querySelector('wc-chess-board');
     if (!board) return;
 
@@ -1258,8 +1435,10 @@
 
     if (document.location.pathname.startsWith('/puzzles')) {
       if (vs.queryConfigKey(namespace + '_puzzlemode')) {
-        puzzleHandler();
-        clickPuzzleNext();
+        manualPuzzleHandler();
+        if (!document.location.pathname.includes('battle')) {
+          clickPuzzleNext();
+        }
       }
     }
 
