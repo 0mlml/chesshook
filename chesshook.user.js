@@ -4,7 +4,7 @@
 // @grant       none
 // @require     https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
 // @require     https://raw.githubusercontent.com/0mlml/vasara/main/vasara.js
-// @version     2.2
+// @version     2.3
 // @author      0mlml
 // @description Chess.com Cheat Userscript
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
@@ -1390,6 +1390,10 @@
 
       if (puzzle.tagged) {
         if (lastPuzzleFEN && fuzzyFensEqual(currentFEN, lastPuzzleFEN)) return;
+
+        if (document.querySelector("#board-animation").children.length) {
+          return;
+        }
 
         while (puzzle.moves.length > 0 && !playerTurn) {
           puzzle.moves.shift();
