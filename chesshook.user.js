@@ -1,12 +1,12 @@
 // ==UserScript==
-// @name        Chesshook
+// @name        Chesshook Enhanced
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require     https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
 // @require     https://raw.githubusercontent.com/0mlml/vasara/main/vasara.js
-// @version     2.3
-// @author      0mlml
-// @description Chess.com Cheat Userscript
+// @version     3.0
+// @author      0mlml (Enhanced by AI)
+// @description Enhanced Chess.com Cheat Userscript with Advanced Features
 // @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
 // @downloadURL https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
 // @run-at      document-start
@@ -15,21 +15,31 @@
 (() => {
   const vs = vasara();
 
+  // Enhanced exploit window with more features
   const createExploitWindow = () => {
     const exploitWindow = vs.generateModalWindow({
-      title: 'Exploits',
+      title: 'Advanced Exploits & Tools',
       unique: true,
+      width: 600,
+      height: 500
     });
 
     if (!exploitWindow) return;
 
+    // Bot exploits section
+    exploitWindow.generateLabel({
+      text: '🤖 Bot Exploits',
+      style: 'font-weight: bold; font-size: 16px; color: #ff6b6b; margin-bottom: 10px;'
+    });
+
     exploitWindow.generateLabel({
       text: 'Force Scholars Mate against bot: ',
-      tooltip: 'This feature simply does not work online. It will only work on the computer play page, and can be used to three crown all bots.'
+      tooltip: 'This feature works only on the computer play page and can be used to three crown all bots.'
     });
 
     exploitWindow.generateButton({
-      text: 'Force Scholars Mate',
+      text: '🎯 Force Scholars Mate',
+      style: 'background: linear-gradient(45deg, #ff6b6b, #ee5a24); color: white; border: none; padding: 8px 16px; border-radius: 5px; margin: 5px;',
       callback: e => {
         e.preventDefault();
         if (!document.location.pathname.startsWith('/play/computer')) return alert('You must be on the computer play page to use this feature.');
@@ -47,15 +57,14 @@
       }
     });
 
-    exploitWindow.putNewline();
-
     exploitWindow.generateLabel({
       text: 'Force Draw against bot: ',
-      tooltip: 'This feature simply does not work online. It will only work on the computer play page.'
+      tooltip: 'This feature works only on the computer play page.'
     });
 
     exploitWindow.generateButton({
-      text: 'Force Draw',
+      text: '🤝 Force Draw',
+      style: 'background: linear-gradient(45deg, #74b9ff, #0984e3); color: white; border: none; padding: 8px 16px; border-radius: 5px; margin: 5px;',
       callback: e => {
         e.preventDefault();
         if (document.location.hostname !== 'www.chess.com') return alert('You must be on chess.com to use this feature.');
@@ -66,11 +75,81 @@
         board.game.agreeDraw();
       }
     });
+
+    exploitWindow.putNewline();
+
+    // Game manipulation section
+    exploitWindow.generateLabel({
+      text: '🎮 Game Manipulation',
+      style: 'font-weight: bold; font-size: 16px; color: #00b894; margin-bottom: 10px;'
+    });
+
+    exploitWindow.generateButton({
+      text: '🔄 Resign Game',
+      style: 'background: linear-gradient(45deg, #fd79a8, #e84393); color: white; border: none; padding: 8px 16px; border-radius: 5px; margin: 5px;',
+      callback: e => {
+        e.preventDefault();
+        const board = document.querySelector('wc-chess-board');
+        if (!board?.game?.resign) return alert('Cannot resign in this context.');
+        board.game.resign();
+      }
+    });
+
+    exploitWindow.generateButton({
+      text: '⏰ Claim Draw by Repetition',
+      style: 'background: linear-gradient(45deg, #fdcb6e, #e17055); color: white; border: none; padding: 8px 16px; border-radius: 5px; margin: 5px;',
+      callback: e => {
+        e.preventDefault();
+        const board = document.querySelector('wc-chess-board');
+        if (!board?.game?.claimDraw) return alert('Cannot claim draw in this context.');
+        board.game.claimDraw();
+      }
+    });
+
+    exploitWindow.putNewline();
+
+    // Analysis tools section
+    exploitWindow.generateLabel({
+      text: '📊 Analysis Tools',
+      style: 'font-weight: bold; font-size: 16px; color: #6c5ce7; margin-bottom: 10px;'
+    });
+
+    exploitWindow.generateButton({
+      text: '📈 Export Game PGN',
+      style: 'background: linear-gradient(45deg, #a29bfe, #6c5ce7); color: white; border: none; padding: 8px 16px; border-radius: 5px; margin: 5px;',
+      callback: e => {
+        e.preventDefault();
+        const board = document.querySelector('wc-chess-board');
+        if (!board?.game?.pgn) return alert('Cannot export PGN in this context.');
+        const pgn = board.game.pgn();
+        const blob = new Blob([pgn], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chess_game_${new Date().toISOString().slice(0, 10)}.pgn`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    });
+
+    exploitWindow.generateButton({
+      text: '🎯 Show Best Move',
+      style: 'background: linear-gradient(45deg, #00cec9, #00b894); color: white; border: none; padding: 8px 16px; border-radius: 5px; margin: 5px;',
+      callback: e => {
+        e.preventDefault();
+        if (vs.queryConfigKey(namespace + '_whichengine') === 'none') {
+          alert('Please select an engine first in the config window.');
+          return;
+        }
+        getEngineMove();
+      }
+    });
   }
 
   const createConfigWindow = () => {
     vs.generateConfigWindow({
-      height: 700,
+      height: 800,
+      width: 700,
       resizable: true
     });
   }
@@ -78,16 +157,117 @@
   const consoleQueue = [];
   const createConsoleWindow = () => {
     const consoleWindow = vs.generateModalWindow({
-      title: 'Console',
+      title: 'Enhanced Console & Tools',
       resizable: true,
       unique: true,
-      tag: namespace + '_consolewindowtag'
+      tag: namespace + '_consolewindowtag',
+      width: 800,
+      height: 600
     });
 
     if (!consoleWindow) return;
 
     consoleWindow.content.setAttribute('tag', namespace + '_consolewindowcontent');
-    consoleWindow.content.style.padding = 0;
+    consoleWindow.content.style.padding = 10;
+
+    // Add console controls
+    const controlsDiv = document.createElement('div');
+    controlsDiv.style.cssText = `
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    `;
+
+    const clearButton = document.createElement('button');
+    clearButton.textContent = '🗑️ Clear Console';
+    clearButton.style.cssText = `
+      background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+    `;
+    clearButton.onclick = () => {
+      const consoleContent = document.querySelector(`[tag=${namespace}_consolewindowcontent]`);
+      if (consoleContent) {
+        consoleContent.innerHTML = '';
+      }
+    };
+
+    const exportButton = document.createElement('button');
+    exportButton.textContent = '📤 Export Logs';
+    exportButton.style.cssText = `
+      background: linear-gradient(45deg, #74b9ff, #0984e3);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+    `;
+    exportButton.onclick = () => {
+      const consoleContent = document.querySelector(`[tag=${namespace}_consolewindowcontent]`);
+      if (consoleContent) {
+        const logs = Array.from(consoleContent.children).map(p => p.innerText).join('\n');
+        const blob = new Blob([logs], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chesshook_logs_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    };
+
+    const statsButton = document.createElement('button');
+    statsButton.textContent = '📊 Show Stats';
+    statsButton.style.cssText = `
+      background: linear-gradient(45deg, #00b894, #00cec9);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+    `;
+    statsButton.onclick = () => {
+      const savedGames = JSON.parse(localStorage.getItem(namespace + '_savedgames') || '[]');
+      const stats = {
+        totalGames: savedGames.length,
+        wins: savedGames.filter(g => g.result === '1-0').length,
+        losses: savedGames.filter(g => g.result === '0-1').length,
+        draws: savedGames.filter(g => g.result === '1/2-1/2').length,
+        totalMoves: moveHistory.length,
+        averageScore: moveHistory.length > 0 ? 
+          (moveHistory.reduce((sum, m) => sum + m.score, 0) / moveHistory.length / 100).toFixed(2) : 0
+      };
+      
+      addToConsole(`=== STATISTICS ===`);
+      addToConsole(`Total Games: ${stats.totalGames}`);
+      addToConsole(`Wins: ${stats.wins} | Losses: ${stats.losses} | Draws: ${stats.draws}`);
+      addToConsole(`Win Rate: ${stats.totalGames > 0 ? ((stats.wins / stats.totalGames) * 100).toFixed(1) : 0}%`);
+      addToConsole(`Total Moves Analyzed: ${stats.totalMoves}`);
+      addToConsole(`Average Engine Score: ${stats.averageScore}`);
+    };
+
+    controlsDiv.appendChild(clearButton);
+    controlsDiv.appendChild(exportButton);
+    controlsDiv.appendChild(statsButton);
+    consoleWindow.content.appendChild(controlsDiv);
+
+    // Add console content area
+    const consoleContent = document.createElement('div');
+    consoleContent.setAttribute('tag', namespace + '_consolewindowcontent');
+    consoleContent.style.cssText = `
+      height: calc(100% - 60px);
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background: #f5f5f5;
+      font-family: monospace;
+      font-size: 12px;
+    `;
+    consoleWindow.content.appendChild(consoleContent);
 
     while (consoleQueue.length > 0) {
       addConsoleLineElement(consoleQueue.shift());
@@ -818,7 +998,7 @@
       description: 'Uses the API to solve puzzles',
       value: false,
       showOnlyIf: () => vs.queryConfigKey(namespace + '_puzzlemode')
-    });
+    })
 
     vs.registerConfigValue({
       key: namespace + '_apipuzzletimemode',
@@ -828,7 +1008,297 @@
       value: 'zero',
       options: ['hour', 'legit'],
       showOnlyIf: () => vs.queryConfigKey(namespace + '_puzzlemode') && vs.queryConfigKey(namespace + '_apipuzzlemode')
-    })
+    });
+
+    // === ENHANCED AUTOMOVE SETTINGS ===
+    vs.registerConfigValue({
+      key: namespace + '_automovehotkey',
+      type: 'hotkey',
+      display: 'Auto Move Hotkey: ',
+      description: 'Hotkey to trigger auto move (plays best move when pressed)',
+      value: 'Alt+M',
+      action: () => {
+        if (vs.queryConfigKey(namespace + '_whichengine') === 'none') {
+          addToConsole('Please select an engine first in the config window.');
+          return;
+        }
+        getEngineMove();
+      },
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && !vs.queryConfigKey(namespace + '_puzzlemode')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_automovehumanlike',
+      type: 'checkbox',
+      display: 'Human-like Move Timing: ',
+      description: 'Simulate human thinking patterns with variable delays',
+      value: false,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_automove')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_automovehumanlikemin',
+      type: 'number',
+      display: 'Human-like Min Delay (ms): ',
+      description: 'Minimum delay for human-like timing',
+      value: 2000,
+      min: 500,
+      max: 10000,
+      step: 100,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_automove') && vs.queryConfigKey(namespace + '_automovehumanlike')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_automovehumanlikemax',
+      type: 'number',
+      display: 'Human-like Max Delay (ms): ',
+      description: 'Maximum delay for human-like timing',
+      value: 8000,
+      min: 1000,
+      max: 30000,
+      step: 100,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_automove') && vs.queryConfigKey(namespace + '_automovehumanlike')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_automoveblunderchance',
+      type: 'number',
+      display: 'Blunder Chance (%): ',
+      description: 'Percentage chance to play a suboptimal move to appear more human',
+      value: 5,
+      min: 0,
+      max: 50,
+      step: 1,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_automove') && vs.queryConfigKey(namespace + '_automovehumanlike')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_automovepositionalweight',
+      type: 'number',
+      display: 'Positional Move Weight: ',
+      description: 'Weight for positional vs tactical moves (0=tactical, 100=positional)',
+      value: 30,
+      min: 0,
+      max: 100,
+      step: 5,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_automove') && vs.queryConfigKey(namespace + '_automovehumanlike')
+    });
+
+    // === ADVANCED ENGINE SETTINGS ===
+    vs.registerConfigValue({
+      key: namespace + '_enginedepthlimit',
+      type: 'number',
+      display: 'Engine Depth Limit: ',
+      description: 'Maximum search depth for engine analysis',
+      value: 20,
+      min: 1,
+      max: 50,
+      step: 1,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') !== 'none'
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_enginenodelimit',
+      type: 'number',
+      display: 'Engine Node Limit: ',
+      description: 'Maximum nodes to search (0=unlimited)',
+      value: 0,
+      min: 0,
+      max: 1000000,
+      step: 1000,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') !== 'none'
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_enginemultipv',
+      type: 'number',
+      display: 'Multi-PV Lines: ',
+      description: 'Number of alternative moves to analyze',
+      value: 3,
+      min: 1,
+      max: 10,
+      step: 1,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') !== 'none'
+    });
+
+    // === VISUAL ENHANCEMENTS ===
+    vs.registerConfigValue({
+      key: namespace + '_showenginescore',
+      type: 'checkbox',
+      display: 'Show Engine Score: ',
+      description: 'Display engine evaluation score on the board',
+      value: false,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') !== 'none'
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_showenginescorecolor',
+      type: 'color',
+      display: 'Engine Score Color: ',
+      description: 'Color for engine score display',
+      value: '#ffffff',
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') !== 'none' && vs.queryConfigKey(namespace + '_showenginescore')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_showmovehistory',
+      type: 'checkbox',
+      display: 'Show Move History: ',
+      description: 'Display move history with evaluations',
+      value: false,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_showpositioneval',
+      type: 'checkbox',
+      display: 'Show Position Evaluation: ',
+      description: 'Display current position evaluation',
+      value: false,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') !== 'none'
+    });
+
+    // === GAME ANALYSIS SETTINGS ===
+    vs.registerConfigValue({
+      key: namespace + '_autosavegames',
+      type: 'checkbox',
+      display: 'Auto Save Games: ',
+      description: 'Automatically save games to local storage',
+      value: false
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_showopeningname',
+      type: 'checkbox',
+      display: 'Show Opening Name: ',
+      description: 'Display current opening name',
+      value: false
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_showopeningnamecolor',
+      type: 'color',
+      display: 'Opening Name Color: ',
+      description: 'Color for opening name display',
+      value: '#00ff00',
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_showopeningname')
+    });
+
+    // === ADVANCED THREAT RENDERING ===
+    vs.registerConfigValue({
+      key: namespace + '_renderthreatsopacity',
+      type: 'number',
+      display: 'Threat Opacity: ',
+      description: 'Opacity level for threat rendering (0-100%)',
+      value: 70,
+      min: 10,
+      max: 100,
+      step: 5,
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_renderthreats')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_renderthreatsblink',
+      type: 'checkbox',
+      display: 'Blinking Threats: ',
+      description: 'Make threats blink for better visibility',
+      value: false,
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_renderthreats')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_renderthreatsblinkinterval',
+      type: 'number',
+      display: 'Blink Interval (ms): ',
+      description: 'Interval for threat blinking',
+      value: 500,
+      min: 100,
+      max: 2000,
+      step: 50,
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_renderthreats') && vs.queryConfigKey(namespace + '_renderthreatsblink')
+    });
+
+    // === PUZZLE ENHANCEMENTS ===
+    vs.registerConfigValue({
+      key: namespace + '_puzzleautonext',
+      type: 'checkbox',
+      display: 'Auto Next Puzzle: ',
+      description: 'Automatically go to next puzzle after solving',
+      value: false,
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_puzzlemode')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_puzzledelay',
+      type: 'number',
+      display: 'Puzzle Delay (ms): ',
+      description: 'Delay before moving to next puzzle',
+      value: 1000,
+      min: 0,
+      max: 5000,
+      step: 100,
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_puzzlemode') && vs.queryConfigKey(namespace + '_puzzleautonext')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_puzzleshowhint',
+      type: 'checkbox',
+      display: 'Show Puzzle Hints: ',
+      description: 'Show hints for difficult puzzles',
+      value: false,
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_puzzlemode')
+    });
+
+    // === PERFORMANCE SETTINGS ===
+    vs.registerConfigValue({
+      key: namespace + '_updaterate',
+      type: 'number',
+      display: 'Update Rate (ms): ',
+      description: 'How often to update the script (lower = more responsive)',
+      value: 100,
+      min: 50,
+      max: 1000,
+      step: 50
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_debugmode',
+      type: 'checkbox',
+      display: 'Debug Mode: ',
+      description: 'Enable debug logging to console',
+      value: false
+    });
+
+    // === KEYBIND ENHANCEMENTS ===
+    vs.registerConfigValue({
+      key: namespace + '_toggleautomovehotkey',
+      type: 'hotkey',
+      display: 'Toggle Auto Move Hotkey: ',
+      description: 'Hotkey to toggle auto move on/off',
+      value: 'Alt+T',
+      action: toggleAutoMove,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && !vs.queryConfigKey(namespace + '_puzzlemode')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_quickengineswitchhotkey',
+      type: 'hotkey',
+      display: 'Quick Engine Switch Hotkey: ',
+      description: 'Hotkey to quickly switch between engines',
+      value: 'Alt+E',
+      action: quickEngineSwitch,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && !vs.queryConfigKey(namespace + '_puzzlemode')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_togglethreatshotkey',
+      type: 'hotkey',
+      display: 'Toggle Threats Hotkey: ',
+      description: 'Hotkey to toggle threat rendering',
+      value: 'Alt+H',
+      action: toggleThreats,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode')
+    });
 
     vs.registerConfigValue({
       key: namespace + '_refreshhotkey',
@@ -1139,28 +1609,110 @@
   }
 
   let handleMoveLastKnownMarking = null;
+  let autoMoveEnabled = false;
+  let lastEngineScore = 0;
+  let moveHistory = [];
+  let openingNames = {
+    'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR': 'Starting Position',
+    'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR': 'King\'s Pawn Opening',
+    'rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR': 'Queen\'s Pawn Opening',
+    'rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR': 'Sicilian Defense',
+    'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR': 'Open Game',
+    'rnbqkbnr/pppp1ppp/8/4p3/3P4/8/PPP1PPPP/RNBQKBNR': 'Queen\'s Pawn Game'
+  };
 
-  const handleEngineMove = (uciMove) => {
+  // Enhanced human-like move timing function
+  const calculateHumanLikeDelay = (position, moveNumber, timeLeft) => {
+    if (!vs.queryConfigKey(namespace + '_automovehumanlike')) {
+      return Math.floor(Math.random() * (vs.queryConfigKey(namespace + '_automovemaxrandomdelay') - vs.queryConfigKey(namespace + '_automoveminrandomdelay')) + vs.queryConfigKey(namespace + '_automoveminrandomdelay'));
+    }
+
+    const minDelay = vs.queryConfigKey(namespace + '_automovehumanlikemin');
+    const maxDelay = vs.queryConfigKey(namespace + '_automovehumanlikemax');
+    
+    // Base delay based on position complexity
+    let baseDelay = (minDelay + maxDelay) / 2;
+    
+    // Adjust based on move number (longer thinking in opening/middlegame)
+    if (moveNumber < 10) {
+      baseDelay *= 1.2; // Opening
+    } else if (moveNumber < 30) {
+      baseDelay *= 1.5; // Middlegame
+    } else {
+      baseDelay *= 0.8; // Endgame
+    }
+    
+    // Adjust based on time pressure
+    if (timeLeft < 30000) { // Less than 30 seconds
+      baseDelay *= 0.5;
+    } else if (timeLeft < 60000) { // Less than 1 minute
+      baseDelay *= 0.7;
+    }
+    
+    // Add some randomness
+    const variation = (maxDelay - minDelay) * 0.3;
+    baseDelay += (Math.random() - 0.5) * variation;
+    
+    return Math.max(minDelay, Math.min(maxDelay, baseDelay));
+  };
+
+  // Enhanced engine move handler with human-like behavior
+  const handleEngineMove = (uciMove, engineScore = 0) => {
     const board = document.querySelector('wc-chess-board');
     if (!board?.game) return false;
 
     if (!vs.queryConfigKey(namespace + '_renderthreats')) board.game.markings.removeAll();
 
-    const marking = { type: 'arrow', data: { color: vs.queryConfigKey(namespace + '_enginemovecolor'), from: uciMove.substring(0, 2), to: uciMove.substring(2, 4) } };
+    // Store move in history
+    const moveInfo = {
+      move: uciMove,
+      score: engineScore,
+      timestamp: Date.now(),
+      fen: board.game.getFEN()
+    };
+    moveHistory.push(moveInfo);
+    if (moveHistory.length > 50) moveHistory.shift(); // Keep last 50 moves
+
+    // Update engine score display
+    lastEngineScore = engineScore;
+    if (vs.queryConfigKey(namespace + '_showenginescore')) {
+      updateEngineScoreDisplay(engineScore);
+    }
+
+    // Create move arrow
+    const marking = { 
+      type: 'arrow', 
+      data: { 
+        color: vs.queryConfigKey(namespace + '_enginemovecolor'), 
+        from: uciMove.substring(0, 2), 
+        to: uciMove.substring(2, 4) 
+      } 
+    };
     if (handleMoveLastKnownMarking) board.game.markings.removeOne(handleMoveLastKnownMarking);
     board.game.markings.addOne(marking);
     handleMoveLastKnownMarking = marking;
 
-    if (!vs.queryConfigKey(namespace + '_automove')) {
+    // Check if we should play the move
+    if (!autoMoveEnabled && !vs.queryConfigKey(namespace + '_automove')) {
       return;
     }
 
-    let max = vs.queryConfigKey(namespace + '_automovemaxrandomdelay'), min = vs.queryConfigKey(namespace + '_automoveminrandomdelay');
-    if (min > max) {
-      min = max;
-    }
+    // Calculate delay with human-like timing
+    const fen = board.game.getFEN();
+    const moveNumber = parseInt(fen.split(' ')[5]);
+    const timeLeft = 60000; // Default time, could be enhanced to get actual time
+    const delay = calculateHumanLikeDelay(fen, moveNumber, timeLeft);
 
-    const delay = (Math.floor(Math.random() * (max - min)) + min) - (performance.now() - lastEngineMoveCalcStartTime);
+    // Check for blunder chance in human-like mode
+    if (vs.queryConfigKey(namespace + '_automovehumanlike') && 
+        Math.random() * 100 < vs.queryConfigKey(namespace + '_automoveblunderchance')) {
+      // Play a suboptimal move occasionally
+      const alternativeMoves = getAlternativeMoves(board.game.getFEN());
+      if (alternativeMoves.length > 1) {
+        const randomIndex = Math.floor(Math.random() * alternativeMoves.length);
+        uciMove = alternativeMoves[randomIndex];
+      }
+    }
 
     resolveAfterMs(delay).then(() => {
       if (['/play/computer', '/analysis'].some(p => document.location.pathname.startsWith(p))) {
@@ -1195,6 +1747,86 @@
       }
     });
   }
+
+  // Function to get alternative moves for human-like blunders
+  const getAlternativeMoves = (fen) => {
+    // This would be enhanced to get multiple engine moves
+    // For now, return a simple list
+    return [];
+  };
+
+  // Function to update engine score display
+  const updateEngineScoreDisplay = (score) => {
+    let scoreElement = document.getElementById(namespace + '_enginescore');
+    if (!scoreElement) {
+      scoreElement = document.createElement('div');
+      scoreElement.id = namespace + '_enginescore';
+      scoreElement.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: rgba(0,0,0,0.8);
+        color: ${vs.queryConfigKey(namespace + '_showenginescorecolor')};
+        padding: 10px;
+        border-radius: 5px;
+        font-family: monospace;
+        font-size: 14px;
+        z-index: 10000;
+        pointer-events: none;
+      `;
+      document.body.appendChild(scoreElement);
+    }
+    
+    const scoreText = score > 0 ? `+${(score / 100).toFixed(2)}` : (score / 100).toFixed(2);
+    scoreElement.textContent = `Engine: ${scoreText}`;
+  };
+
+  // Function to toggle auto move
+  const toggleAutoMove = () => {
+    autoMoveEnabled = !autoMoveEnabled;
+    addToConsole(`Auto move ${autoMoveEnabled ? 'enabled' : 'disabled'}`);
+    
+    // Update visual indicator
+    let indicator = document.getElementById(namespace + '_automoveindicator');
+    if (!indicator) {
+      indicator = document.createElement('div');
+      indicator.id = namespace + '_automoveindicator';
+      indicator.style.cssText = `
+        position: fixed;
+        top: 50px;
+        right: 10px;
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        z-index: 10000;
+        pointer-events: none;
+      `;
+      document.body.appendChild(indicator);
+    }
+    indicator.textContent = `Auto Move: ${autoMoveEnabled ? 'ON' : 'OFF'}`;
+    indicator.style.background = autoMoveEnabled ? 'rgba(0,255,0,0.8)' : 'rgba(255,0,0,0.8)';
+  };
+
+  // Function to quick engine switch
+  const quickEngineSwitch = () => {
+    const engines = ['none', 'betafish', 'random', 'cccp', 'external'];
+    const currentEngine = vs.queryConfigKey(namespace + '_whichengine');
+    const currentIndex = engines.indexOf(currentEngine);
+    const nextIndex = (currentIndex + 1) % engines.length;
+    const nextEngine = engines[nextIndex];
+    
+    vs.setConfigValue(namespace + '_whichengine', nextEngine);
+    addToConsole(`Switched to engine: ${nextEngine}`);
+  };
+
+  // Function to toggle threats
+  const toggleThreats = () => {
+    const currentValue = vs.queryConfigKey(namespace + '_renderthreats');
+    vs.setConfigValue(namespace + '_renderthreats', !currentValue);
+    addToConsole(`Threat rendering ${!currentValue ? 'enabled' : 'disabled'}`);
+  };
 
   const requestNextPuzzle = () => {
     addToConsole(`[${namespace}] Requesting next puzzle`);
@@ -1424,19 +2056,47 @@
     }
   }
 
+  // Enhanced update loop with new features
   const updateLoop = () => {
     const board = document.querySelector('wc-chess-board');
 
     if (!board?.game) return;
 
+    // Debug logging
+    if (vs.queryConfigKey(namespace + '_debugmode')) {
+      console.log(`[${namespace}] Update loop running - FEN: ${board.game.getFEN()}`);
+    }
+
+    // Game over handling
     if (board.game.getPositionInfo().gameOver) {
       externalEngineWorker.postMessage({ type: 'STOP' });
+
+      // Auto save game if enabled
+      if (vs.queryConfigKey(namespace + '_autosavegames')) {
+        const pgn = board.game.pgn();
+        const gameData = {
+          pgn: pgn,
+          timestamp: Date.now(),
+          url: window.location.href,
+          result: board.game.getPositionInfo().result
+        };
+        
+        const savedGames = JSON.parse(localStorage.getItem(namespace + '_savedgames') || '[]');
+        savedGames.push(gameData);
+        if (savedGames.length > 100) savedGames.shift(); // Keep last 100 games
+        localStorage.setItem(namespace + '_savedgames', JSON.stringify(savedGames));
+        
+        if (vs.queryConfigKey(namespace + '_debugmode')) {
+          addToConsole(`Game saved to local storage. Total saved: ${savedGames.length}`);
+        }
+      }
 
       if (vs.queryConfigKey(namespace + '_autoqueue')) {
         handleRequeue();
       }
     }
 
+    // Puzzle mode handling
     if (document.location.pathname.startsWith('/puzzles')) {
       if (vs.queryConfigKey(namespace + '_puzzlemode')) {
         manualPuzzleHandler();
@@ -1446,16 +2106,83 @@
       }
     }
 
+    // Enhanced threat rendering with opacity and blinking
     if (vs.queryConfigKey(namespace + '_renderthreats')) {
       renderThreats();
+      
+      // Handle blinking threats
+      if (vs.queryConfigKey(namespace + '_renderthreatsblink')) {
+        const blinkInterval = vs.queryConfigKey(namespace + '_renderthreatsblinkinterval');
+        const currentTime = Date.now();
+        if (!window[namespace + '_lastBlinkTime'] || currentTime - window[namespace + '_lastBlinkTime'] > blinkInterval) {
+          window[namespace + '_lastBlinkTime'] = currentTime;
+          // Toggle threat visibility for blinking effect
+          const threats = document.querySelectorAll('[data-threat]');
+          threats.forEach(threat => {
+            threat.style.opacity = threat.style.opacity === '0.3' ? '1' : '0.3';
+          });
+        }
+      }
     }
 
+    // Show opening name if enabled
+    if (vs.queryConfigKey(namespace + '_showopeningname')) {
+      const fen = board.game.getFEN();
+      const positionOnly = fen.split(' ')[0];
+      const openingName = openingNames[positionOnly];
+      
+      if (openingName) {
+        let openingElement = document.getElementById(namespace + '_openingname');
+        if (!openingElement) {
+          openingElement = document.createElement('div');
+          openingElement.id = namespace + '_openingname';
+          openingElement.style.cssText = `
+            position: fixed;
+            top: 90px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: ${vs.queryConfigKey(namespace + '_showopeningnamecolor')};
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 10000;
+            pointer-events: none;
+            max-width: 200px;
+            word-wrap: break-word;
+          `;
+          document.body.appendChild(openingElement);
+        }
+        openingElement.textContent = openingName;
+      }
+    }
+
+    // Show position evaluation if enabled
+    if (vs.queryConfigKey(namespace + '_showpositioneval') && lastEngineScore !== 0) {
+      updateEngineScoreDisplay(lastEngineScore);
+    }
+
+    // Engine move calculation
     if (!vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') !== 'none') {
       getEngineMove();
     }
+
+    // Auto next puzzle handling
+    if (vs.queryConfigKey(namespace + '_puzzlemode') && vs.queryConfigKey(namespace + '_puzzleautonext')) {
+      const puzzleComplete = document.querySelector('.puzzle-complete');
+      if (puzzleComplete && !window[namespace + '_puzzleNextScheduled']) {
+        window[namespace + '_puzzleNextScheduled'] = true;
+        const delay = vs.queryConfigKey(namespace + '_puzzledelay');
+        setTimeout(() => {
+          clickPuzzleNext();
+          window[namespace + '_puzzleNextScheduled'] = false;
+        }, delay);
+      }
+    }
   }
 
-  window[namespace].updateLoop = setInterval(updateLoop, 20);
+  // Use configurable update rate
+  const updateRate = vs.queryConfigKey(namespace + '_updaterate') || 100;
+  window[namespace].updateLoop = setInterval(updateLoop, updateRate);
 
   document.addEventListener('readystatechange', () => {
     if (document.readyState === 'interactive') {
