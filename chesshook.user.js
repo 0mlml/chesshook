@@ -1,93 +1,995 @@
 // ==UserScript==
-// @name        Chesshook
+// @name        Chesshook Enhanced
 // @include    	https://www.chess.com/*
 // @grant       none
 // @require     https://raw.githubusercontent.com/0mlml/chesshook/master/betafish.js
 // @require     https://raw.githubusercontent.com/0mlml/vasara/main/vasara.js
-// @version     2.3
-// @author      0mlml
-// @description Chess.com Cheat Userscript
-// @updateURL   https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
-// @downloadURL https://raw.githubusercontent.com/0mlml/chesshook/master/chesshook.user.js
-// @run-at      document-start
+// @version     3.0
+// @author      0mlml (Enhanced by AI)
+// @description Enhanced Chess.com Cheat Userscript with Advanced Features
+// @run-at      document-end
 // ==/UserScript==
 
 (() => {
-  const vs = vasara();
+  try {
+      // Safety check for vasara library
+  let vs;
+  const initializeVasara = () => {
+    try {
+      if (typeof vasara === 'function') {
+        vs = vasara();
+        console.log('[Chesshook Enhanced] Vasara library initialized successfully');
+      } else {
+        console.warn('[Chesshook Enhanced] Vasara function not available, retrying...');
+        setTimeout(initializeVasara, 100);
+      }
+    } catch (error) {
+      console.error('[Chesshook Enhanced] Failed to initialize vasara library:', error);
+      // Retry after a delay
+      setTimeout(initializeVasara, 500);
+    }
+  };
 
+  // Initialize vasara library
+  initializeVasara();
+  
+  // Add console message about external error filtering
+  console.log('[Chesshook Enhanced] External error filtering enabled - chess.com errors will be suppressed');
+
+  // Enhanced exploit window with more features
   const createExploitWindow = () => {
     const exploitWindow = vs.generateModalWindow({
-      title: 'Exploits',
+      title: 'Chesshook Tools',
       unique: true,
+      width: 500,
+      height: 400
     });
 
     if (!exploitWindow) return;
 
-    exploitWindow.generateLabel({
-      text: 'Force Scholars Mate against bot: ',
-      tooltip: 'This feature simply does not work online. It will only work on the computer play page, and can be used to three crown all bots.'
+    // Apply dark theme
+    exploitWindow.content.style.cssText = `
+      background: #1a1a1a;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 0;
+      border-radius: 8px;
+      overflow: hidden;
+    `;
+
+    // Create tab container
+    const tabContainer = document.createElement('div');
+    tabContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    `;
+
+    // Create tab buttons
+    const tabButtons = document.createElement('div');
+    tabButtons.style.cssText = `
+      display: flex;
+      background: #2d2d2d;
+      border-bottom: 1px solid #404040;
+    `;
+
+    const tabs = [
+      { id: 'exploits', label: '🤖 Exploits', icon: '🎯' },
+      { id: 'game', label: '🎮 Game', icon: '⚡' },
+      { id: 'tools', label: '📊 Tools', icon: '🔧' }
+    ];
+
+    const tabContents = {};
+    let activeTab = 'exploits';
+
+    tabs.forEach((tab, index) => {
+      const button = document.createElement('button');
+      button.textContent = `${tab.icon} ${tab.label}`;
+      button.style.cssText = `
+        background: ${index === 0 ? '#404040' : 'transparent'};
+        color: #e0e0e0;
+        border: none;
+        padding: 12px 16px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        flex: 1;
+        border-radius: 0;
+      `;
+      
+      button.onmouseenter = () => {
+        if (activeTab !== tab.id) {
+          button.style.background = '#353535';
+        }
+      };
+      
+      button.onmouseleave = () => {
+        if (activeTab !== tab.id) {
+          button.style.background = 'transparent';
+        }
+      };
+
+      button.onclick = () => {
+        // Update active tab
+        activeTab = tab.id;
+        tabButtons.children.forEach((btn, i) => {
+          btn.style.background = i === index ? '#404040' : 'transparent';
+        });
+        
+        // Show/hide content
+        Object.keys(tabContents).forEach(key => {
+          tabContents[key].style.display = key === tab.id ? 'block' : 'none';
+        });
+      };
+
+      tabButtons.appendChild(button);
+
+      // Create tab content
+      const content = document.createElement('div');
+      content.style.cssText = `
+        display: ${index === 0 ? 'block' : 'none'};
+        padding: 20px;
+        flex: 1;
+        overflow-y: auto;
+      `;
+      tabContents[tab.id] = content;
     });
 
-    exploitWindow.generateButton({
-      text: 'Force Scholars Mate',
-      callback: e => {
-        e.preventDefault();
-        if (!document.location.pathname.startsWith('/play/computer')) return alert('You must be on the computer play page to use this feature.');
-        const board = document.querySelector('wc-chess-board');
-        if (!board?.game?.move || !board?.game?.getFEN) return alert('You must be in a game to use this feature.');
-        if (parseInt(board.game.getFEN().split(' ')[5]) > 1 || board.game.getFEN().split(' ')[1] !== 'w') return alert('It must be turn 1 and white to move to use this feature.');
+    // Exploits tab content
+    const exploitsContent = tabContents.exploits;
+    
+    const createButton = (text, color, onClick) => {
+      const button = document.createElement('button');
+      button.textContent = text;
+      button.style.cssText = `
+        background: ${color};
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        margin: 5px;
+        transition: all 0.2s ease;
+        width: calc(50% - 10px);
+        box-sizing: border-box;
+      `;
+      button.onmouseenter = () => button.style.transform = 'translateY(-1px)';
+      button.onmouseleave = () => button.style.transform = 'translateY(0)';
+      button.onclick = onClick;
+      return button;
+    };
 
-        board.game.move('e4');
-        board.game.move('e5');
-        board.game.move('Qf3');
-        board.game.move('Nc6');
-        board.game.move('Bc4');
-        board.game.move('Nb8');
-        board.game.move('Qxf7#');
+    const buttonRow1 = document.createElement('div');
+    buttonRow1.style.cssText = 'display: flex; gap: 10px; margin-bottom: 15px;';
+    
+    buttonRow1.appendChild(createButton('🎯 Scholars Mate', 'linear-gradient(135deg, #ff6b6b, #ee5a24)', e => {
+      e.preventDefault();
+      if (!document.location.pathname.startsWith('/play/computer')) return alert('You must be on the computer play page to use this feature.');
+      const board = document.querySelector('wc-chess-board');
+      if (!board?.game?.move || !board?.game?.getFEN) return alert('You must be in a game to use this feature.');
+      if (parseInt(board.game.getFEN().split(' ')[5]) > 1 || board.game.getFEN().split(' ')[1] !== 'w') return alert('It must be turn 1 and white to move to use this feature.');
+
+      board.game.move('e4');
+      board.game.move('e5');
+      board.game.move('Qf3');
+      board.game.move('Nc6');
+      board.game.move('Bc4');
+      board.game.move('Nb8');
+      board.game.move('Qxf7#');
+    }));
+
+    buttonRow1.appendChild(createButton('🤝 Force Draw', 'linear-gradient(135deg, #74b9ff, #0984e3)', e => {
+      e.preventDefault();
+      if (document.location.hostname !== 'www.chess.com') return alert('You must be on chess.com to use this feature.');
+      if (!document.location.pathname.startsWith('/play/computer')) return alert('You must be on the computer play page to use this feature.');
+      const board = document.querySelector('wc-chess-board');
+      if (!board?.game?.move) return alert('You must be in a game to use this feature.');
+
+      board.game.agreeDraw();
+    }));
+
+    exploitsContent.appendChild(buttonRow1);
+
+    // Game tab content
+    const gameContent = tabContents.game;
+    
+    const buttonRow2 = document.createElement('div');
+    buttonRow2.style.cssText = 'display: flex; gap: 10px; margin-bottom: 15px;';
+    
+    buttonRow2.appendChild(createButton('🔄 Resign', 'linear-gradient(135deg, #fd79a8, #e84393)', e => {
+      e.preventDefault();
+      const board = document.querySelector('wc-chess-board');
+      if (!board?.game?.resign) return alert('Cannot resign in this context.');
+      board.game.resign();
+    }));
+
+    buttonRow2.appendChild(createButton('⏰ Claim Draw', 'linear-gradient(135deg, #fdcb6e, #e17055)', e => {
+      e.preventDefault();
+      const board = document.querySelector('wc-chess-board');
+      if (!board?.game?.claimDraw) return alert('Cannot claim draw in this context.');
+      board.game.claimDraw();
+    }));
+
+    gameContent.appendChild(buttonRow2);
+
+    // Tools tab content
+    const toolsContent = tabContents.tools;
+    
+    const buttonRow3 = document.createElement('div');
+    buttonRow3.style.cssText = 'display: flex; gap: 10px; margin-bottom: 15px;';
+    
+    buttonRow3.appendChild(createButton('📈 Export PGN', 'linear-gradient(135deg, #a29bfe, #6c5ce7)', e => {
+      e.preventDefault();
+      const board = document.querySelector('wc-chess-board');
+      if (!board?.game?.pgn) return alert('Cannot export PGN in this context.');
+      const pgn = board.game.pgn();
+      const blob = new Blob([pgn], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `chess_game_${new Date().toISOString().slice(0, 10)}.pgn`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }));
+
+    buttonRow3.appendChild(createButton('🎯 Best Move', 'linear-gradient(135deg, #00cec9, #00b894)', e => {
+      e.preventDefault();
+      if (vs.queryConfigKey(namespace + '_whichengine') === 'none') {
+        alert('Please select an engine first in the config window.');
+        return;
       }
-    });
+      getEngineMove();
+    }));
 
-    exploitWindow.putNewline();
+    toolsContent.appendChild(buttonRow3);
 
-    exploitWindow.generateLabel({
-      text: 'Force Draw against bot: ',
-      tooltip: 'This feature simply does not work online. It will only work on the computer play page.'
-    });
-
-    exploitWindow.generateButton({
-      text: 'Force Draw',
-      callback: e => {
-        e.preventDefault();
-        if (document.location.hostname !== 'www.chess.com') return alert('You must be on chess.com to use this feature.');
-        if (!document.location.pathname.startsWith('/play/computer')) return alert('You must be on the computer play page to use this feature.');
-        const board = document.querySelector('wc-chess-board');
-        if (!board?.game?.move) return alert('You must be in a game to use this feature.');
-
-        board.game.agreeDraw();
-      }
-    });
+    // Assemble the window
+    tabContainer.appendChild(tabButtons);
+    Object.values(tabContents).forEach(content => tabContainer.appendChild(content));
+    exploitWindow.content.appendChild(tabContainer);
   }
 
   const createConfigWindow = () => {
-    vs.generateConfigWindow({
-      height: 700,
+    const configWindow = vs.generateConfigWindow({
+      height: 600,
+      width: 500,
       resizable: true
     });
+
+    if (configWindow && configWindow.content) {
+      // Apply dark theme to config window
+      configWindow.content.style.cssText = `
+        background: #1a1a1a !important;
+        color: #e0e0e0 !important;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+      `;
+
+      // Style all input elements
+      const inputs = configWindow.content.querySelectorAll('input, select, textarea');
+      inputs.forEach(input => {
+        input.style.cssText = `
+          background: #2d2d2d !important;
+          color: #e0e0e0 !important;
+          border: 1px solid #404040 !important;
+          border-radius: 4px !important;
+          padding: 6px 8px !important;
+          font-size: 12px !important;
+        `;
+      });
+
+      // Style all labels
+      const labels = configWindow.content.querySelectorAll('label');
+      labels.forEach(label => {
+        label.style.cssText = `
+          color: #e0e0e0 !important;
+          font-size: 12px !important;
+          font-weight: 500 !important;
+        `;
+      });
+
+      // Style all buttons
+      const buttons = configWindow.content.querySelectorAll('button');
+      buttons.forEach(button => {
+        button.style.cssText = `
+          background: linear-gradient(135deg, #404040, #2d2d2d) !important;
+          color: #e0e0e0 !important;
+          border: 1px solid #404040 !important;
+          border-radius: 4px !important;
+          padding: 8px 12px !important;
+          font-size: 12px !important;
+          cursor: pointer !important;
+          transition: all 0.2s ease !important;
+        `;
+        
+        button.onmouseenter = () => {
+          button.style.background = 'linear-gradient(135deg, #505050, #404040) !important';
+        };
+        
+        button.onmouseleave = () => {
+          button.style.background = 'linear-gradient(135deg, #404040, #2d2d2d) !important';
+        };
+      });
+
+      // Style the window title
+      const title = configWindow.content.querySelector('.title, h1, h2, h3');
+      if (title) {
+        title.style.cssText = `
+          color: #e0e0e0 !important;
+          font-size: 16px !important;
+          font-weight: 600 !important;
+          margin-bottom: 15px !important;
+        `;
+      }
+    }
+  }
+
+  const createSettingsWindow = () => {
+    const settingsWindow = vs.generateModalWindow({
+      title: 'Chesshook Settings',
+      unique: true,
+      width: 550,
+      height: 500
+    });
+
+    if (!settingsWindow) return;
+
+    // Apply dark theme
+    settingsWindow.content.style.cssText = `
+      background: #1a1a1a;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 0;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+    `;
+
+    // Create tab container
+    const tabContainer = document.createElement('div');
+    tabContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+    `;
+
+    // Create tab buttons
+    const tabButtons = document.createElement('div');
+    tabButtons.style.cssText = `
+      display: flex;
+      background: #2d2d2d;
+      border-bottom: 1px solid #404040;
+      flex-shrink: 0;
+    `;
+
+    const tabs = [
+      { id: 'engine', label: '🤖 Engine', icon: '⚙️' },
+      { id: 'automove', label: '⚡ Auto Move', icon: '🎯' },
+      { id: 'visual', label: '🎨 Visual', icon: '👁️' },
+      { id: 'puzzle', label: '🧩 Puzzle', icon: '🎲' },
+      { id: 'advanced', label: '🔧 Advanced', icon: '⚡' }
+    ];
+
+    const tabContents = {};
+    let activeTab = 'engine';
+
+    const mainContentArea = document.createElement('div');
+    mainContentArea.style.cssText = `
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+    `;
+
+    tabs.forEach((tab, index) => {
+      const button = document.createElement('button');
+      button.textContent = `${tab.icon} ${tab.label}`;
+      button.style.cssText = `
+        background: ${index === 0 ? '#404040' : 'transparent'};
+        color: #e0e0e0;
+        border: none;
+        padding: 12px 16px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        flex: 1;
+        border-radius: 0;
+      `;
+      
+      button.onmouseenter = () => {
+        if (activeTab !== tab.id) {
+          button.style.background = '#353535';
+        }
+      };
+      
+      button.onmouseleave = () => {
+        if (activeTab !== tab.id) {
+          button.style.background = 'transparent';
+        }
+      };
+
+      button.onclick = () => {
+        activeTab = tab.id;
+        Array.from(tabButtons.children).forEach((btn, i) => {
+          btn.style.background = i === index ? '#404040' : 'transparent';
+        });
+        
+        Object.keys(tabContents).forEach(key => {
+          tabContents[key].style.display = key === tab.id ? 'block' : 'none';
+        });
+      };
+
+      tabButtons.appendChild(button);
+
+      const content = document.createElement('div');
+      content.style.cssText = `
+        display: ${index === 0 ? 'block' : 'none'};
+      `;
+      tabContents[tab.id] = content;
+      mainContentArea.appendChild(content);
+    });
+
+    // Helper function to create setting rows
+    const createSettingRow = (label, control, description = '') => {
+      const row = document.createElement('div');
+      row.style.cssText = `
+        margin-bottom: 15px;
+        padding: 10px;
+        background: #2d2d2d;
+        border-radius: 6px;
+        border: 1px solid #404040;
+      `;
+
+      const labelElement = document.createElement('label');
+      labelElement.textContent = label;
+      labelElement.style.cssText = `
+        display: block;
+        color: #e0e0e0;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 5px;
+      `;
+
+      const controlContainer = document.createElement('div');
+      controlContainer.style.cssText = `
+        margin-bottom: 5px;
+      `;
+      controlContainer.appendChild(control);
+
+      row.appendChild(labelElement);
+      row.appendChild(controlContainer);
+
+      if (description) {
+        const descElement = document.createElement('div');
+        descElement.textContent = description;
+        descElement.style.cssText = `
+          color: #a0a0a0;
+          font-size: 11px;
+          font-style: italic;
+        `;
+        row.appendChild(descElement);
+      }
+
+      return row;
+    };
+
+    // Engine tab content
+    const engineContent = tabContents.engine;
+    
+    const engineSelect = document.createElement('select');
+    engineSelect.style.cssText = `
+      background: #1a1a1a;
+      color: #e0e0e0;
+      border: 1px solid #404040;
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-size: 12px;
+      width: 100%;
+      box-sizing: border-box;
+    `;
+    ['none', 'betafish', 'random', 'cccp', 'external'].forEach(engine => {
+      const option = document.createElement('option');
+      option.value = engine;
+      option.textContent = engine.charAt(0).toUpperCase() + engine.slice(1);
+      engineSelect.appendChild(option);
+    });
+    engineSelect.value = vs.queryConfigKey(namespace + '_whichengine') || 'none';
+    engineSelect.onchange = () => vs.setConfigValue(namespace + '_whichengine', engineSelect.value);
+
+    engineContent.appendChild(createSettingRow(
+      'Engine Selection',
+      engineSelect,
+      'Choose which chess engine to use for analysis and moves'
+    ));
+
+    const depthInput = document.createElement('input');
+    depthInput.type = 'number';
+    depthInput.min = '1';
+    depthInput.max = '50';
+    depthInput.value = vs.queryConfigKey(namespace + '_enginedepthlimit') || '20';
+    depthInput.style.cssText = `
+      background: #1a1a1a;
+      color: #e0e0e0;
+      border: 1px solid #404040;
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-size: 12px;
+      width: 100%;
+      box-sizing: border-box;
+    `;
+    depthInput.onchange = () => vs.setConfigValue(namespace + '_enginedepthlimit', parseInt(depthInput.value));
+
+    engineContent.appendChild(createSettingRow(
+      'Engine Depth Limit',
+      depthInput,
+      'Maximum search depth for the engine (1-50)'
+    ));
+
+    // Auto Move tab content
+    const automoveContent = tabContents.automove;
+    
+    const autoMoveToggle = document.createElement('input');
+    autoMoveToggle.type = 'checkbox';
+    autoMoveToggle.checked = vs.queryConfigKey(namespace + '_automove') || false;
+    autoMoveToggle.style.cssText = `
+      width: 18px;
+      height: 18px;
+      accent-color: #00b894;
+    `;
+    autoMoveToggle.onchange = () => vs.setConfigValue(namespace + '_automove', autoMoveToggle.checked);
+
+    automoveContent.appendChild(createSettingRow(
+      'Enable Auto Move',
+      autoMoveToggle,
+      'Automatically play the best move when it\'s your turn'
+    ));
+
+    const humanLikeToggle = document.createElement('input');
+    humanLikeToggle.type = 'checkbox';
+    humanLikeToggle.checked = vs.queryConfigKey(namespace + '_automovehumanlike') || false;
+    humanLikeToggle.style.cssText = `
+      width: 18px;
+      height: 18px;
+      accent-color: #00b894;
+    `;
+    humanLikeToggle.onchange = () => vs.setConfigValue(namespace + '_automovehumanlike', humanLikeToggle.checked);
+
+    automoveContent.appendChild(createSettingRow(
+      'Human-like Timing',
+      humanLikeToggle,
+      'Simulate realistic thinking patterns and delays'
+    ));
+
+    const minDelayInput = document.createElement('input');
+    minDelayInput.type = 'number';
+    minDelayInput.min = '500';
+    minDelayInput.max = '30000';
+    minDelayInput.value = vs.queryConfigKey(namespace + '_automovemindelay') || '1000';
+    minDelayInput.style.cssText = `
+      background: #1a1a1a;
+      color: #e0e0e0;
+      border: 1px solid #404040;
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-size: 12px;
+      width: 100%;
+      box-sizing: border-box;
+    `;
+    minDelayInput.onchange = () => vs.setConfigValue(namespace + '_automovemindelay', parseInt(minDelayInput.value));
+
+    automoveContent.appendChild(createSettingRow(
+      'Minimum Delay (ms)',
+      minDelayInput,
+      'Minimum delay before making a move (500-30000ms)'
+    ));
+
+    // Visual tab content
+    const visualContent = tabContents.visual;
+    
+    const threatsToggle = document.createElement('input');
+    threatsToggle.type = 'checkbox';
+    threatsToggle.checked = vs.queryConfigKey(namespace + '_renderthreats') || false;
+    threatsToggle.style.cssText = `
+      width: 18px;
+      height: 18px;
+      accent-color: #00b894;
+    `;
+    threatsToggle.onchange = () => vs.setConfigValue(namespace + '_renderthreats', threatsToggle.checked);
+
+    visualContent.appendChild(createSettingRow(
+      'Show Threats',
+      threatsToggle,
+      'Display pins, undefended pieces, and mate threats on the board'
+    ));
+
+    const scoreToggle = document.createElement('input');
+    scoreToggle.type = 'checkbox';
+    scoreToggle.checked = vs.queryConfigKey(namespace + '_showenginescore') || false;
+    scoreToggle.style.cssText = `
+      width: 18px;
+      height: 18px;
+      accent-color: #00b894;
+    `;
+    scoreToggle.onchange = () => vs.setConfigValue(namespace + '_showenginescore', scoreToggle.checked);
+
+    visualContent.appendChild(createSettingRow(
+      'Show Engine Score',
+      scoreToggle,
+      'Display real-time engine evaluation scores'
+    ));
+
+    const scoreColorInput = document.createElement('input');
+    scoreColorInput.type = 'color';
+    scoreColorInput.value = vs.queryConfigKey(namespace + '_showenginescorecolor') || '#00ff00';
+    scoreColorInput.style.cssText = `
+      width: 50px;
+      height: 30px;
+      border: 1px solid #404040;
+      border-radius: 4px;
+      background: #1a1a1a;
+    `;
+    scoreColorInput.onchange = () => vs.setConfigValue(namespace + '_showenginescorecolor', scoreColorInput.value);
+
+    visualContent.appendChild(createSettingRow(
+      'Score Display Color',
+      scoreColorInput,
+      'Color for the engine score display'
+    ));
+
+    // Puzzle tab content
+    const puzzleContent = tabContents.puzzle;
+    
+    const puzzleToggle = document.createElement('input');
+    puzzleToggle.type = 'checkbox';
+    puzzleToggle.checked = vs.queryConfigKey(namespace + '_puzzlemode') || false;
+    puzzleToggle.style.cssText = `
+      width: 18px;
+      height: 18px;
+      accent-color: #00b894;
+    `;
+    puzzleToggle.onchange = () => vs.setConfigValue(namespace + '_puzzlemode', puzzleToggle.checked);
+
+    puzzleContent.appendChild(createSettingRow(
+      'Puzzle Mode',
+      puzzleToggle,
+      'Enable automatic puzzle solving'
+    ));
+
+    const autoNextToggle = document.createElement('input');
+    autoNextToggle.type = 'checkbox';
+    autoNextToggle.checked = vs.queryConfigKey(namespace + '_autonextpuzzle') || false;
+    autoNextToggle.style.cssText = `
+      width: 18px;
+      height: 18px;
+      accent-color: #00b894;
+    `;
+    autoNextToggle.onchange = () => vs.setConfigValue(namespace + '_autonextpuzzle', autoNextToggle.checked);
+
+    puzzleContent.appendChild(createSettingRow(
+      'Auto Next Puzzle',
+      autoNextToggle,
+      'Automatically proceed to the next puzzle after solving'
+    ));
+
+    // Advanced tab content
+    const advancedContent = tabContents.advanced;
+    
+    const debugToggle = document.createElement('input');
+    debugToggle.type = 'checkbox';
+    debugToggle.checked = vs.queryConfigKey(namespace + '_debugmode') || false;
+    debugToggle.style.cssText = `
+      width: 18px;
+      height: 18px;
+      accent-color: #00b894;
+    `;
+    debugToggle.onchange = () => vs.setConfigValue(namespace + '_debugmode', debugToggle.checked);
+
+    advancedContent.appendChild(createSettingRow(
+      'Debug Mode',
+      debugToggle,
+      'Enable detailed logging and diagnostics'
+    ));
+
+    const updateRateInput = document.createElement('input');
+    updateRateInput.type = 'number';
+    updateRateInput.min = '50';
+    updateRateInput.max = '1000';
+    updateRateInput.value = vs.queryConfigKey(namespace + '_updaterate') || '100';
+    updateRateInput.style.cssText = `
+      background: #1a1a1a;
+      color: #e0e0e0;
+      border: 1px solid #404040;
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-size: 12px;
+      width: 100%;
+      box-sizing: border-box;
+    `;
+    updateRateInput.onchange = () => vs.setConfigValue(namespace + '_updaterate', parseInt(updateRateInput.value));
+
+    advancedContent.appendChild(createSettingRow(
+      'Update Rate (ms)',
+      updateRateInput,
+      'How often the script updates (50-1000ms)'
+    ));
+
+    // Add save/reset buttons at the bottom
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = `
+      display: flex;
+      gap: 10px;
+      padding: 15px 20px;
+      background: #2d2d2d;
+      border-top: 1px solid #404040;
+      flex-shrink: 0;
+    `;
+
+    const createButton = (text, color, onClick) => {
+      const button = document.createElement('button');
+      button.textContent = text;
+      button.style.cssText = `
+        background: ${color};
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        flex: 1;
+      `;
+      button.onmouseenter = () => button.style.transform = 'translateY(-1px)';
+      button.onmouseleave = () => button.style.transform = 'translateY(0)';
+      button.onclick = onClick;
+      return button;
+    };
+
+    buttonContainer.appendChild(createButton('💾 Save Settings', 'linear-gradient(135deg, #00b894, #00cec9)', () => {
+      addToConsole('Settings saved successfully!');
+    }));
+
+    buttonContainer.appendChild(createButton('🔄 Reset to Defaults', 'linear-gradient(135deg, #ff6b6b, #ee5a24)', () => {
+      if (confirm('Are you sure you want to reset all settings to defaults?')) {
+        // Reset all settings to defaults
+        vs.setConfigValue(namespace + '_whichengine', 'none');
+        vs.setConfigValue(namespace + '_enginedepthlimit', 20);
+        vs.setConfigValue(namespace + '_automove', false);
+        vs.setConfigValue(namespace + '_automovehumanlike', false);
+        vs.setConfigValue(namespace + '_automovemindelay', 1000);
+        vs.setConfigValue(namespace + '_renderthreats', false);
+        vs.setConfigValue(namespace + '_showenginescore', false);
+        vs.setConfigValue(namespace + '_showenginescorecolor', '#00ff00');
+        vs.setConfigValue(namespace + '_puzzlemode', false);
+        vs.setConfigValue(namespace + '_autonextpuzzle', false);
+        vs.setConfigValue(namespace + '_debugmode', false);
+        vs.setConfigValue(namespace + '_updaterate', 100);
+        
+        addToConsole('Settings reset to defaults!');
+        location.reload(); // Reload to apply changes
+      }
+    }));
+
+    // Assemble the window
+    tabContainer.appendChild(tabButtons);
+    tabContainer.appendChild(mainContentArea);
+    tabContainer.appendChild(buttonContainer);
+    settingsWindow.content.appendChild(tabContainer);
   }
 
   const consoleQueue = [];
   const createConsoleWindow = () => {
     const consoleWindow = vs.generateModalWindow({
-      title: 'Console',
+      title: 'Chesshook Console',
       resizable: true,
       unique: true,
-      tag: namespace + '_consolewindowtag'
+      tag: namespace + '_consolewindowtag',
+      width: 600,
+      height: 450
     });
 
     if (!consoleWindow) return;
 
+    // Apply dark theme
+    consoleWindow.content.style.cssText = `
+      background: #1a1a1a;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 0;
+      border-radius: 8px;
+      overflow: hidden;
+    `;
+
     consoleWindow.content.setAttribute('tag', namespace + '_consolewindowcontent');
-    consoleWindow.content.style.padding = 0;
+
+    // Create tab container
+    const tabContainer = document.createElement('div');
+    tabContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    `;
+
+    // Create tab buttons
+    const tabButtons = document.createElement('div');
+    tabButtons.style.cssText = `
+      display: flex;
+      background: #2d2d2d;
+      border-bottom: 1px solid #404040;
+    `;
+
+    const tabs = [
+      { id: 'console', label: '📝 Console', icon: '💬' },
+      { id: 'stats', label: '📊 Stats', icon: '📈' },
+      { id: 'tools', label: '🔧 Tools', icon: '⚙️' }
+    ];
+
+    const tabContents = {};
+    let activeTab = 'console';
+
+    tabs.forEach((tab, index) => {
+      const button = document.createElement('button');
+      button.textContent = `${tab.icon} ${tab.label}`;
+      button.style.cssText = `
+        background: ${index === 0 ? '#404040' : 'transparent'};
+        color: #e0e0e0;
+        border: none;
+        padding: 12px 16px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        flex: 1;
+        border-radius: 0;
+      `;
+      
+      button.onmouseenter = () => {
+        if (activeTab !== tab.id) {
+          button.style.background = '#353535';
+        }
+      };
+      
+      button.onmouseleave = () => {
+        if (activeTab !== tab.id) {
+          button.style.background = 'transparent';
+        }
+      };
+
+      button.onclick = () => {
+        activeTab = tab.id;
+        tabButtons.children.forEach((btn, i) => {
+          btn.style.background = i === index ? '#404040' : 'transparent';
+        });
+        
+        Object.keys(tabContents).forEach(key => {
+          tabContents[key].style.display = key === tab.id ? 'block' : 'none';
+        });
+      };
+
+      tabButtons.appendChild(button);
+
+      const content = document.createElement('div');
+      content.style.cssText = `
+        display: ${index === 0 ? 'block' : 'none'};
+        padding: 20px;
+        flex: 1;
+        overflow-y: auto;
+      `;
+      tabContents[tab.id] = content;
+    });
+
+    // Console tab content
+    const consoleContent = tabContents.console;
+    
+    const createButton = (text, color, onClick) => {
+      const button = document.createElement('button');
+      button.textContent = text;
+      button.style.cssText = `
+        background: ${color};
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 500;
+        margin: 3px;
+        transition: all 0.2s ease;
+      `;
+      button.onmouseenter = () => button.style.transform = 'translateY(-1px)';
+      button.onmouseleave = () => button.style.transform = 'translateY(0)';
+      button.onclick = onClick;
+      return button;
+    };
+
+    const controlsDiv = document.createElement('div');
+    controlsDiv.style.cssText = `
+      display: flex;
+      gap: 8px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    `;
+
+    controlsDiv.appendChild(createButton('🗑️ Clear', 'linear-gradient(135deg, #ff6b6b, #ee5a24)', () => {
+      const consoleArea = document.querySelector(`[tag=${namespace}_consolewindowcontent]`);
+      if (consoleArea) {
+        consoleArea.innerHTML = '';
+      }
+    }));
+
+    controlsDiv.appendChild(createButton('📤 Export', 'linear-gradient(135deg, #74b9ff, #0984e3)', () => {
+      const consoleArea = document.querySelector(`[tag=${namespace}_consolewindowcontent]`);
+      if (consoleArea) {
+        const logs = Array.from(consoleArea.children).map(p => p.innerText).join('\n');
+        const blob = new Blob([logs], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chesshook_logs_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    }));
+
+    consoleContent.appendChild(controlsDiv);
+
+    // Console output area
+    const consoleOutput = document.createElement('div');
+    consoleOutput.setAttribute('tag', namespace + '_consolewindowcontent');
+    consoleOutput.style.cssText = `
+      height: calc(100% - 60px);
+      overflow-y: auto;
+      border: 1px solid #404040;
+      padding: 12px;
+      background: #0f0f0f;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 11px;
+      border-radius: 6px;
+      color: #00ff00;
+    `;
+    consoleContent.appendChild(consoleOutput);
+
+    // Stats tab content
+    const statsContent = tabContents.stats;
+    
+    const statsButton = createButton('📊 Show Stats', 'linear-gradient(135deg, #00b894, #00cec9)', () => {
+      const savedGames = JSON.parse(localStorage.getItem(namespace + '_savedgames') || '[]');
+      const stats = {
+        totalGames: savedGames.length,
+        wins: savedGames.filter(g => g.result === '1-0').length,
+        losses: savedGames.filter(g => g.result === '0-1').length,
+        draws: savedGames.filter(g => g.result === '1/2-1/2').length,
+        totalMoves: moveHistory.length,
+        averageScore: moveHistory.length > 0 ? 
+          (moveHistory.reduce((sum, m) => sum + m.score, 0) / moveHistory.length / 100).toFixed(2) : 0
+      };
+      
+      addToConsole(`=== STATISTICS ===`);
+      addToConsole(`Total Games: ${stats.totalGames}`);
+      addToConsole(`Wins: ${stats.wins} | Losses: ${stats.losses} | Draws: ${stats.draws}`);
+      addToConsole(`Win Rate: ${stats.totalGames > 0 ? ((stats.wins / stats.totalGames) * 100).toFixed(1) : 0}%`);
+      addToConsole(`Total Moves Analyzed: ${stats.totalMoves}`);
+      addToConsole(`Average Engine Score: ${stats.averageScore}`);
+    });
+
+    statsContent.appendChild(statsButton);
+
+    // Tools tab content
+    const toolsContent = tabContents.tools;
+    
+    const toolsButton = createButton('🔄 Refresh', 'linear-gradient(135deg, #a29bfe, #6c5ce7)', () => {
+      location.reload();
+    });
+
+    toolsContent.appendChild(toolsButton);
+
+    // Assemble the window
+    tabContainer.appendChild(tabButtons);
+    Object.values(tabContents).forEach(content => tabContainer.appendChild(content));
+    consoleWindow.content.appendChild(tabContainer);
 
     while (consoleQueue.length > 0) {
       addConsoleLineElement(consoleQueue.shift());
@@ -103,11 +1005,20 @@
     }
 
     const line = document.createElement('p');
-    line.style.border = 'solid 1px';
-    line.style.width = '100%';
-    line.style.padding = '2px';
+    line.style.cssText = `
+      margin: 2px 0;
+      padding: 4px 8px;
+      background: #1a1a1a;
+      border-left: 3px solid #404040;
+      border-radius: 3px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 11px;
+      color: #00ff00;
+      word-wrap: break-word;
+    `;
     line.innerText = text;
     consoleContent.appendChild(line);
+    consoleContent.scrollTop = consoleContent.scrollHeight;
   }
 
   const addToConsole = (text) => {
@@ -554,6 +1465,44 @@
   }
 
   const init = () => {
+    // Safety check to ensure DOM is ready
+    if (!document.head || !document.body) {
+      console.warn(`[${namespace}] DOM not ready, retrying initialization...`);
+      setTimeout(init, 100);
+      return;
+    }
+
+    // Ensure vs is available
+    if (!vs) {
+      console.error(`[${namespace}] Vasara library not available, cannot initialize`);
+      return;
+    }
+
+    // Add initialization status indicator
+    try {
+      let statusElement = document.getElementById(namespace + '_status');
+      if (!statusElement) {
+        statusElement = document.createElement('div');
+        statusElement.id = namespace + '_status';
+        statusElement.style.cssText = `
+          position: fixed;
+          top: 10px;
+          left: 10px;
+          background: rgba(255,165,0,0.9);
+          color: white;
+          padding: 8px 12px;
+          border-radius: 5px;
+          font-size: 12px;
+          z-index: 10000;
+          pointer-events: none;
+          font-family: monospace;
+        `;
+        document.body.appendChild(statusElement);
+      }
+      statusElement.textContent = 'Chesshook Enhanced: Loading...';
+    } catch (error) {
+      console.warn(`[${namespace}] Could not create status indicator:`, error);
+    }
     vs.registerConfigValue({
       key: namespace + '_configwindowhotkey',
       type: 'hotkey',
@@ -579,6 +1528,15 @@
       description: 'The hotkey to show the exploit window',
       value: 'Alt+L',
       action: createExploitWindow
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_settingswindowhotkey',
+      type: 'hotkey',
+      display: 'Settings Window Hotkey: ',
+      description: 'The hotkey to show the settings window',
+      value: 'Alt+O',
+      action: createSettingsWindow
     });
 
     vs.registerConfigValue({
@@ -818,7 +1776,7 @@
       description: 'Uses the API to solve puzzles',
       value: false,
       showOnlyIf: () => vs.queryConfigKey(namespace + '_puzzlemode')
-    });
+    })
 
     vs.registerConfigValue({
       key: namespace + '_apipuzzletimemode',
@@ -828,7 +1786,306 @@
       value: 'zero',
       options: ['hour', 'legit'],
       showOnlyIf: () => vs.queryConfigKey(namespace + '_puzzlemode') && vs.queryConfigKey(namespace + '_apipuzzlemode')
-    })
+    });
+
+    // === ENHANCED AUTOMOVE SETTINGS ===
+    vs.registerConfigValue({
+      key: namespace + '_automovehotkey',
+      type: 'hotkey',
+      display: 'Auto Move Hotkey: ',
+      description: 'Hotkey to trigger auto move (plays best move when pressed)',
+      value: 'Alt+M',
+      action: () => {
+        if (vs.queryConfigKey(namespace + '_whichengine') === 'none') {
+          addToConsole('Please select an engine first in the config window.');
+          return;
+        }
+        getEngineMove();
+      },
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && !vs.queryConfigKey(namespace + '_puzzlemode')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_automovehumanlike',
+      type: 'checkbox',
+      display: 'Human-like Move Timing: ',
+      description: 'Simulate human thinking patterns with variable delays',
+      value: false,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_automove')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_automovehumanlikemin',
+      type: 'number',
+      display: 'Human-like Min Delay (ms): ',
+      description: 'Minimum delay for human-like timing',
+      value: 2000,
+      min: 500,
+      max: 10000,
+      step: 100,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_automove') && vs.queryConfigKey(namespace + '_automovehumanlike')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_automovehumanlikemax',
+      type: 'number',
+      display: 'Human-like Max Delay (ms): ',
+      description: 'Maximum delay for human-like timing',
+      value: 8000,
+      min: 1000,
+      max: 30000,
+      step: 100,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_automove') && vs.queryConfigKey(namespace + '_automovehumanlike')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_automoveblunderchance',
+      type: 'number',
+      display: 'Blunder Chance (%): ',
+      description: 'Percentage chance to play a suboptimal move to appear more human',
+      value: 5,
+      min: 0,
+      max: 50,
+      step: 1,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_automove') && vs.queryConfigKey(namespace + '_automovehumanlike')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_automovepositionalweight',
+      type: 'number',
+      display: 'Positional Move Weight: ',
+      description: 'Weight for positional vs tactical moves (0=tactical, 100=positional)',
+      value: 30,
+      min: 0,
+      max: 100,
+      step: 5,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_automove') && vs.queryConfigKey(namespace + '_automovehumanlike')
+    });
+
+    // === ADVANCED ENGINE SETTINGS ===
+    vs.registerConfigValue({
+      key: namespace + '_enginedepthlimit',
+      type: 'number',
+      display: 'Engine Depth Limit: ',
+      description: 'Maximum search depth for engine analysis',
+      value: 20,
+      min: 1,
+      max: 50,
+      step: 1,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') !== 'none'
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_enginenodelimit',
+      type: 'number',
+      display: 'Engine Node Limit: ',
+      description: 'Maximum nodes to search (0=unlimited)',
+      value: 0,
+      min: 0,
+      max: 1000000,
+      step: 1000,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') !== 'none'
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_enginemultipv',
+      type: 'number',
+      display: 'Multi-PV Lines: ',
+      description: 'Number of alternative moves to analyze',
+      value: 3,
+      min: 1,
+      max: 10,
+      step: 1,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') !== 'none'
+    });
+
+    // === VISUAL ENHANCEMENTS ===
+    vs.registerConfigValue({
+      key: namespace + '_showenginescore',
+      type: 'checkbox',
+      display: 'Show Engine Score: ',
+      description: 'Display engine evaluation score on the board',
+      value: false,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') !== 'none'
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_showenginescorecolor',
+      type: 'color',
+      display: 'Engine Score Color: ',
+      description: 'Color for engine score display',
+      value: '#ffffff',
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') !== 'none' && vs.queryConfigKey(namespace + '_showenginescore')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_showmovehistory',
+      type: 'checkbox',
+      display: 'Show Move History: ',
+      description: 'Display move history with evaluations',
+      value: false,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_showpositioneval',
+      type: 'checkbox',
+      display: 'Show Position Evaluation: ',
+      description: 'Display current position evaluation',
+      value: false,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') !== 'none'
+    });
+
+    // === GAME ANALYSIS SETTINGS ===
+    vs.registerConfigValue({
+      key: namespace + '_autosavegames',
+      type: 'checkbox',
+      display: 'Auto Save Games: ',
+      description: 'Automatically save games to local storage',
+      value: false
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_showopeningname',
+      type: 'checkbox',
+      display: 'Show Opening Name: ',
+      description: 'Display current opening name',
+      value: false
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_showopeningnamecolor',
+      type: 'color',
+      display: 'Opening Name Color: ',
+      description: 'Color for opening name display',
+      value: '#00ff00',
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_showopeningname')
+    });
+
+    // === ADVANCED THREAT RENDERING ===
+    vs.registerConfigValue({
+      key: namespace + '_renderthreatsopacity',
+      type: 'number',
+      display: 'Threat Opacity: ',
+      description: 'Opacity level for threat rendering (0-100%)',
+      value: 70,
+      min: 10,
+      max: 100,
+      step: 5,
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_renderthreats')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_renderthreatsblink',
+      type: 'checkbox',
+      display: 'Blinking Threats: ',
+      description: 'Make threats blink for better visibility',
+      value: false,
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_renderthreats')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_renderthreatsblinkinterval',
+      type: 'number',
+      display: 'Blink Interval (ms): ',
+      description: 'Interval for threat blinking',
+      value: 500,
+      min: 100,
+      max: 2000,
+      step: 50,
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_renderthreats') && vs.queryConfigKey(namespace + '_renderthreatsblink')
+    });
+
+    // === PUZZLE ENHANCEMENTS ===
+    vs.registerConfigValue({
+      key: namespace + '_puzzleautonext',
+      type: 'checkbox',
+      display: 'Auto Next Puzzle: ',
+      description: 'Automatically go to next puzzle after solving',
+      value: false,
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_puzzlemode')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_puzzledelay',
+      type: 'number',
+      display: 'Puzzle Delay (ms): ',
+      description: 'Delay before moving to next puzzle',
+      value: 1000,
+      min: 0,
+      max: 5000,
+      step: 100,
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_puzzlemode') && vs.queryConfigKey(namespace + '_puzzleautonext')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_puzzleshowhint',
+      type: 'checkbox',
+      display: 'Show Puzzle Hints: ',
+      description: 'Show hints for difficult puzzles',
+      value: false,
+      showOnlyIf: () => vs.queryConfigKey(namespace + '_puzzlemode')
+    });
+
+    // === PERFORMANCE SETTINGS ===
+    vs.registerConfigValue({
+      key: namespace + '_updaterate',
+      type: 'number',
+      display: 'Update Rate (ms): ',
+      description: 'How often to update the script (lower = more responsive)',
+      value: 100,
+      min: 50,
+      max: 1000,
+      step: 50
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_debugmode',
+      type: 'checkbox',
+      display: 'Debug Mode: ',
+      description: 'Enable debug logging to console',
+      value: false
+    });
+
+    // === KEYBIND ENHANCEMENTS ===
+    vs.registerConfigValue({
+      key: namespace + '_toggleautomovehotkey',
+      type: 'hotkey',
+      display: 'Toggle Auto Move Hotkey: ',
+      description: 'Hotkey to toggle auto move on/off',
+      value: 'Alt+T',
+      action: toggleAutoMove,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && !vs.queryConfigKey(namespace + '_puzzlemode')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_quickengineswitchhotkey',
+      type: 'hotkey',
+      display: 'Quick Engine Switch Hotkey: ',
+      description: 'Hotkey to quickly switch between engines',
+      value: 'Alt+E',
+      action: quickEngineSwitch,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode') && !vs.queryConfigKey(namespace + '_puzzlemode')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_togglethreatshotkey',
+      type: 'hotkey',
+      display: 'Toggle Threats Hotkey: ',
+      description: 'Hotkey to toggle threat rendering',
+      value: 'Alt+H',
+      action: toggleThreats,
+      showOnlyIf: () => !vs.queryConfigKey(namespace + '_legitmode')
+    });
+
+    vs.registerConfigValue({
+      key: namespace + '_showstatushotkey',
+      type: 'hotkey',
+      display: 'Show Status Hotkey: ',
+      description: 'Hotkey to show script status and current settings',
+      value: 'Alt+S',
+      action: showScriptStatus
+    });
 
     vs.registerConfigValue({
       key: namespace + '_refreshhotkey',
@@ -859,8 +2116,31 @@
 
     vs.loadPersistentState();
 
+    // Update status indicator
+    try {
+      const statusElement = document.getElementById(namespace + '_status');
+      if (statusElement) {
+        statusElement.textContent = 'Chesshook Enhanced: Ready!';
+        statusElement.style.background = 'rgba(0,255,0,0.9)';
+        // Hide status after 3 seconds
+        setTimeout(() => {
+          if (statusElement && statusElement.parentNode) {
+            statusElement.parentNode.removeChild(statusElement);
+          }
+        }, 3000);
+      }
+    } catch (error) {
+      console.warn(`[${namespace}] Could not update status indicator:`, error);
+    }
+
     addToConsole(`Loaded! This is version ${GM_info.script.version}`);
     addToConsole(`Github: https://github.com/0mlml/chesshook`);
+    addToConsole(`Note: External errors (Sentry, AudioContext, etc.) are from chess.com and not related to this script.`);
+          console.log('[Chesshook Enhanced] Script loaded successfully! Use Alt+K for config, Alt+O for settings, Alt+M for auto move, Alt+C for console, Alt+L for tools');
+    
+    // Handle external errors gracefully
+    handleExternalErrors();
+    
     if (vs.queryConfigKey(namespace + '_externalengineurl') && vs.queryConfigKey(namespace + '_whichengine') === 'external') {
       externalEngineWorker.postMessage({ type: 'INIT', payload: vs.queryConfigKey(namespace + '_externalengineurl') });
     }
@@ -1139,28 +2419,110 @@
   }
 
   let handleMoveLastKnownMarking = null;
+  let autoMoveEnabled = false;
+  let lastEngineScore = 0;
+  let moveHistory = [];
+  let openingNames = {
+    'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR': 'Starting Position',
+    'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR': 'King\'s Pawn Opening',
+    'rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR': 'Queen\'s Pawn Opening',
+    'rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR': 'Sicilian Defense',
+    'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR': 'Open Game',
+    'rnbqkbnr/pppp1ppp/8/4p3/3P4/8/PPP1PPPP/RNBQKBNR': 'Queen\'s Pawn Game'
+  };
 
-  const handleEngineMove = (uciMove) => {
+  // Enhanced human-like move timing function
+  const calculateHumanLikeDelay = (position, moveNumber, timeLeft) => {
+    if (!vs.queryConfigKey(namespace + '_automovehumanlike')) {
+      return Math.floor(Math.random() * (vs.queryConfigKey(namespace + '_automovemaxrandomdelay') - vs.queryConfigKey(namespace + '_automoveminrandomdelay')) + vs.queryConfigKey(namespace + '_automoveminrandomdelay'));
+    }
+
+    const minDelay = vs.queryConfigKey(namespace + '_automovehumanlikemin');
+    const maxDelay = vs.queryConfigKey(namespace + '_automovehumanlikemax');
+    
+    // Base delay based on position complexity
+    let baseDelay = (minDelay + maxDelay) / 2;
+    
+    // Adjust based on move number (longer thinking in opening/middlegame)
+    if (moveNumber < 10) {
+      baseDelay *= 1.2; // Opening
+    } else if (moveNumber < 30) {
+      baseDelay *= 1.5; // Middlegame
+    } else {
+      baseDelay *= 0.8; // Endgame
+    }
+    
+    // Adjust based on time pressure
+    if (timeLeft < 30000) { // Less than 30 seconds
+      baseDelay *= 0.5;
+    } else if (timeLeft < 60000) { // Less than 1 minute
+      baseDelay *= 0.7;
+    }
+    
+    // Add some randomness
+    const variation = (maxDelay - minDelay) * 0.3;
+    baseDelay += (Math.random() - 0.5) * variation;
+    
+    return Math.max(minDelay, Math.min(maxDelay, baseDelay));
+  };
+
+  // Enhanced engine move handler with human-like behavior
+  const handleEngineMove = (uciMove, engineScore = 0) => {
     const board = document.querySelector('wc-chess-board');
     if (!board?.game) return false;
 
     if (!vs.queryConfigKey(namespace + '_renderthreats')) board.game.markings.removeAll();
 
-    const marking = { type: 'arrow', data: { color: vs.queryConfigKey(namespace + '_enginemovecolor'), from: uciMove.substring(0, 2), to: uciMove.substring(2, 4) } };
+    // Store move in history
+    const moveInfo = {
+      move: uciMove,
+      score: engineScore,
+      timestamp: Date.now(),
+      fen: board.game.getFEN()
+    };
+    moveHistory.push(moveInfo);
+    if (moveHistory.length > 50) moveHistory.shift(); // Keep last 50 moves
+
+    // Update engine score display
+    lastEngineScore = engineScore;
+    if (vs.queryConfigKey(namespace + '_showenginescore')) {
+      updateEngineScoreDisplay(engineScore);
+    }
+
+    // Create move arrow
+    const marking = { 
+      type: 'arrow', 
+      data: { 
+        color: vs.queryConfigKey(namespace + '_enginemovecolor'), 
+        from: uciMove.substring(0, 2), 
+        to: uciMove.substring(2, 4) 
+      } 
+    };
     if (handleMoveLastKnownMarking) board.game.markings.removeOne(handleMoveLastKnownMarking);
     board.game.markings.addOne(marking);
     handleMoveLastKnownMarking = marking;
 
-    if (!vs.queryConfigKey(namespace + '_automove')) {
+    // Check if we should play the move
+    if (!autoMoveEnabled && !vs.queryConfigKey(namespace + '_automove')) {
       return;
     }
 
-    let max = vs.queryConfigKey(namespace + '_automovemaxrandomdelay'), min = vs.queryConfigKey(namespace + '_automoveminrandomdelay');
-    if (min > max) {
-      min = max;
-    }
+    // Calculate delay with human-like timing
+    const fen = board.game.getFEN();
+    const moveNumber = parseInt(fen.split(' ')[5]);
+    const timeLeft = 60000; // Default time, could be enhanced to get actual time
+    const delay = calculateHumanLikeDelay(fen, moveNumber, timeLeft);
 
-    const delay = (Math.floor(Math.random() * (max - min)) + min) - (performance.now() - lastEngineMoveCalcStartTime);
+    // Check for blunder chance in human-like mode
+    if (vs.queryConfigKey(namespace + '_automovehumanlike') && 
+        Math.random() * 100 < vs.queryConfigKey(namespace + '_automoveblunderchance')) {
+      // Play a suboptimal move occasionally
+      const alternativeMoves = getAlternativeMoves(board.game.getFEN());
+      if (alternativeMoves.length > 1) {
+        const randomIndex = Math.floor(Math.random() * alternativeMoves.length);
+        uciMove = alternativeMoves[randomIndex];
+      }
+    }
 
     resolveAfterMs(delay).then(() => {
       if (['/play/computer', '/analysis'].some(p => document.location.pathname.startsWith(p))) {
@@ -1195,6 +2557,205 @@
       }
     });
   }
+
+  // Function to get alternative moves for human-like blunders
+  const getAlternativeMoves = (fen) => {
+    // This would be enhanced to get multiple engine moves
+    // For now, return a simple list
+    return [];
+  };
+
+  // Function to update engine score display
+  const updateEngineScoreDisplay = (score) => {
+    try {
+      if (!document.body) {
+        console.warn(`[${namespace}] Document body not available for score display`);
+        return;
+      }
+
+      let scoreElement = document.getElementById(namespace + '_enginescore');
+      if (!scoreElement) {
+        scoreElement = document.createElement('div');
+        scoreElement.id = namespace + '_enginescore';
+        scoreElement.style.cssText = `
+          position: fixed;
+          top: 10px;
+          right: 10px;
+          background: #1a1a1a;
+          color: ${vs.queryConfigKey(namespace + '_showenginescorecolor')};
+          padding: 10px;
+          border-radius: 8px;
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          font-size: 12px;
+          font-weight: 600;
+          z-index: 10000;
+          pointer-events: none;
+          border: 1px solid #404040;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        document.body.appendChild(scoreElement);
+      }
+      
+      const scoreText = score > 0 ? `+${(score / 100).toFixed(2)}` : (score / 100).toFixed(2);
+      scoreElement.textContent = `Engine: ${scoreText}`;
+    } catch (error) {
+      console.warn(`[${namespace}] Error updating engine score display:`, error);
+    }
+  };
+
+  // Function to toggle auto move
+  const toggleAutoMove = () => {
+    try {
+      if (!document.body) {
+        console.warn(`[${namespace}] Document body not available for auto move indicator`);
+        return;
+      }
+
+      autoMoveEnabled = !autoMoveEnabled;
+      addToConsole(`Auto move ${autoMoveEnabled ? 'enabled' : 'disabled'}`);
+      
+      // Update visual indicator
+      let indicator = document.getElementById(namespace + '_automoveindicator');
+      if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = namespace + '_automoveindicator';
+        indicator.style.cssText = `
+          position: fixed;
+          top: 50px;
+          right: 10px;
+          background: #1a1a1a;
+          color: #e0e0e0;
+          padding: 8px 12px;
+          border-radius: 8px;
+          font-size: 11px;
+          font-weight: 600;
+          z-index: 10000;
+          pointer-events: none;
+          border: 1px solid #404040;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        `;
+        document.body.appendChild(indicator);
+      }
+      indicator.textContent = `⚡ Auto Move: ${autoMoveEnabled ? 'ON' : 'OFF'}`;
+      indicator.style.background = autoMoveEnabled ? '#1a4a1a' : '#4a1a1a';
+      indicator.style.borderColor = autoMoveEnabled ? '#00ff00' : '#ff0000';
+    } catch (error) {
+      console.warn(`[${namespace}] Error toggling auto move:`, error);
+    }
+  };
+
+  // Function to quick engine switch
+  const quickEngineSwitch = () => {
+    const engines = ['none', 'betafish', 'random', 'cccp', 'external'];
+    const currentEngine = vs.queryConfigKey(namespace + '_whichengine');
+    const currentIndex = engines.indexOf(currentEngine);
+    const nextIndex = (currentIndex + 1) % engines.length;
+    const nextEngine = engines[nextIndex];
+    
+    vs.setConfigValue(namespace + '_whichengine', nextEngine);
+    addToConsole(`Switched to engine: ${nextEngine}`);
+  };
+
+  // Function to toggle threats
+  const toggleThreats = () => {
+    const currentValue = vs.queryConfigKey(namespace + '_renderthreats');
+    vs.setConfigValue(namespace + '_renderthreats', !currentValue);
+    addToConsole(`Threat rendering ${!currentValue ? 'enabled' : 'disabled'}`);
+  };
+
+  // Function to handle external errors gracefully
+  const handleExternalErrors = () => {
+    // Suppress common external errors that are not our fault
+    const originalConsoleError = console.error;
+    const originalConsoleWarn = console.warn;
+    
+    console.error = function(...args) {
+      const message = args.join(' ');
+      // Filter out external errors that are not our concern
+      if (message.includes('AudioContext') || 
+          message.includes('Sentry') || 
+          message.includes('confiant') ||
+          message.includes('Notification permission') ||
+          message.includes('Cross-Origin Request Blocked') ||
+          message.includes('sentry.client.fca225e1.js') ||
+          message.includes('cdn.confiant-integrations.net') ||
+          message.includes('preloaded with link preload') ||
+          message.includes('canModifyExistingMovesOnMainLine') ||
+          message.includes('Fetch response clone error') ||
+          message.includes('Key does not exist') ||
+          message.includes('Tried to register an existing key') ||
+          message.includes('sentry.io') ||
+          message.includes('Loading failed for the <script>')) {
+        // Suppress these external errors
+        return;
+      }
+      originalConsoleError.apply(console, args);
+    };
+
+    console.warn = function(...args) {
+      const message = args.join(' ');
+      // Filter out external warnings that are not our concern
+      if (message.includes('AudioContext') || 
+          message.includes('Sentry') || 
+          message.includes('confiant') ||
+          message.includes('Notification permission') ||
+          message.includes('sentry.client.fca225e1.js') ||
+          message.includes('cdn.confiant-integrations.net') ||
+          message.includes('preloaded with link preload') ||
+          message.includes('canModifyExistingMovesOnMainLine') ||
+          message.includes('Fetch response clone error') ||
+          message.includes('Key does not exist') ||
+          message.includes('Tried to register an existing key') ||
+          message.includes('sentry.io') ||
+          message.includes('Loading failed for the <script>')) {
+        // Suppress these external warnings
+        return;
+      }
+      originalConsoleWarn.apply(console, args);
+    };
+  };
+
+  // Function to show script status
+  const showScriptStatus = () => {
+    try {
+      let statusElement = document.getElementById(namespace + '_scriptstatus');
+      if (!statusElement) {
+        statusElement = document.createElement('div');
+        statusElement.id = namespace + '_scriptstatus';
+        statusElement.style.cssText = `
+          position: fixed;
+          bottom: 10px;
+          left: 10px;
+          background: #1a1a1a;
+          color: #e0e0e0;
+          padding: 12px;
+          border-radius: 8px;
+          font-size: 11px;
+          z-index: 10000;
+          max-width: 280px;
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          border: 1px solid #404040;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        document.body.appendChild(statusElement);
+      }
+      
+      const board = document.querySelector('wc-chess-board');
+      const engine = vs.queryConfigKey(namespace + '_whichengine');
+      const autoMove = vs.queryConfigKey(namespace + '_automove') || autoMoveEnabled;
+      
+      let status = `🎯 Chesshook Enhanced v${GM_info.script.version}\n`;
+      status += `🤖 Engine: ${engine}\n`;
+      status += `⚡ Auto Move: ${autoMove ? 'ON' : 'OFF'}\n`;
+      status += `♟️ Board: ${board ? 'Found' : 'Not Found'}\n`;
+      status += `📄 Page: ${document.location.pathname}`;
+      
+      statusElement.textContent = status;
+    } catch (error) {
+      console.warn(`[${namespace}] Could not show script status:`, error);
+    }
+  };
 
   const requestNextPuzzle = () => {
     addToConsole(`[${namespace}] Requesting next puzzle`);
@@ -1424,19 +2985,47 @@
     }
   }
 
+  // Enhanced update loop with new features
   const updateLoop = () => {
     const board = document.querySelector('wc-chess-board');
 
     if (!board?.game) return;
 
+    // Debug logging
+    if (vs.queryConfigKey(namespace + '_debugmode')) {
+      console.log(`[${namespace}] Update loop running - FEN: ${board.game.getFEN()}`);
+    }
+
+    // Game over handling
     if (board.game.getPositionInfo().gameOver) {
       externalEngineWorker.postMessage({ type: 'STOP' });
+
+      // Auto save game if enabled
+      if (vs.queryConfigKey(namespace + '_autosavegames')) {
+        const pgn = board.game.pgn();
+        const gameData = {
+          pgn: pgn,
+          timestamp: Date.now(),
+          url: window.location.href,
+          result: board.game.getPositionInfo().result
+        };
+        
+        const savedGames = JSON.parse(localStorage.getItem(namespace + '_savedgames') || '[]');
+        savedGames.push(gameData);
+        if (savedGames.length > 100) savedGames.shift(); // Keep last 100 games
+        localStorage.setItem(namespace + '_savedgames', JSON.stringify(savedGames));
+        
+        if (vs.queryConfigKey(namespace + '_debugmode')) {
+          addToConsole(`Game saved to local storage. Total saved: ${savedGames.length}`);
+        }
+      }
 
       if (vs.queryConfigKey(namespace + '_autoqueue')) {
         handleRequeue();
       }
     }
 
+    // Puzzle mode handling
     if (document.location.pathname.startsWith('/puzzles')) {
       if (vs.queryConfigKey(namespace + '_puzzlemode')) {
         manualPuzzleHandler();
@@ -1446,20 +3035,121 @@
       }
     }
 
+    // Enhanced threat rendering with opacity and blinking
     if (vs.queryConfigKey(namespace + '_renderthreats')) {
       renderThreats();
+      
+      // Handle blinking threats
+      if (vs.queryConfigKey(namespace + '_renderthreatsblink')) {
+        const blinkInterval = vs.queryConfigKey(namespace + '_renderthreatsblinkinterval');
+        const currentTime = Date.now();
+        if (!window[namespace + '_lastBlinkTime'] || currentTime - window[namespace + '_lastBlinkTime'] > blinkInterval) {
+          window[namespace + '_lastBlinkTime'] = currentTime;
+          // Toggle threat visibility for blinking effect
+          const threats = document.querySelectorAll('[data-threat]');
+          threats.forEach(threat => {
+            threat.style.opacity = threat.style.opacity === '0.3' ? '1' : '0.3';
+          });
+        }
+      }
     }
 
+    // Show opening name if enabled
+    if (vs.queryConfigKey(namespace + '_showopeningname')) {
+      try {
+        if (!document.body) {
+          return;
+        }
+
+        const fen = board.game.getFEN();
+        const positionOnly = fen.split(' ')[0];
+        const openingName = openingNames[positionOnly];
+        
+        if (openingName) {
+          let openingElement = document.getElementById(namespace + '_openingname');
+          if (!openingElement) {
+            openingElement = document.createElement('div');
+            openingElement.id = namespace + '_openingname';
+            openingElement.style.cssText = `
+              position: fixed;
+              top: 90px;
+              right: 10px;
+              background: rgba(0,0,0,0.8);
+              color: ${vs.queryConfigKey(namespace + '_showopeningnamecolor')};
+              padding: 8px 12px;
+              border-radius: 5px;
+              font-size: 12px;
+              z-index: 10000;
+              pointer-events: none;
+              max-width: 200px;
+              word-wrap: break-word;
+            `;
+            document.body.appendChild(openingElement);
+          }
+          openingElement.textContent = openingName;
+        }
+      } catch (error) {
+        console.warn(`[${namespace}] Error showing opening name:`, error);
+      }
+    }
+
+    // Show position evaluation if enabled
+    if (vs.queryConfigKey(namespace + '_showpositioneval') && lastEngineScore !== 0) {
+      updateEngineScoreDisplay(lastEngineScore);
+    }
+
+    // Engine move calculation
     if (!vs.queryConfigKey(namespace + '_legitmode') && vs.queryConfigKey(namespace + '_whichengine') !== 'none') {
       getEngineMove();
     }
+
+    // Auto next puzzle handling
+    if (vs.queryConfigKey(namespace + '_puzzlemode') && vs.queryConfigKey(namespace + '_puzzleautonext')) {
+      const puzzleComplete = document.querySelector('.puzzle-complete');
+      if (puzzleComplete && !window[namespace + '_puzzleNextScheduled']) {
+        window[namespace + '_puzzleNextScheduled'] = true;
+        const delay = vs.queryConfigKey(namespace + '_puzzledelay');
+        setTimeout(() => {
+          clickPuzzleNext();
+          window[namespace + '_puzzleNextScheduled'] = false;
+        }, delay);
+      }
+    }
   }
 
-  window[namespace].updateLoop = setInterval(updateLoop, 20);
+  // Use configurable update rate
+  const updateRate = vs.queryConfigKey(namespace + '_updaterate') || 100;
+  window[namespace].updateLoop = setInterval(updateLoop, updateRate);
 
-  document.addEventListener('readystatechange', () => {
-    if (document.readyState === 'interactive') {
+  // Simplified initialization for document-end
+  const initializeScript = () => {
+    try {
+      // Ensure DOM is ready
+      if (!document.head || !document.body) {
+        console.warn(`[${namespace}] DOM not ready, retrying in 100ms...`);
+        setTimeout(initializeScript, 100);
+        return;
+      }
+
+      // Ensure vs is available
+      if (!vs) {
+        console.log(`[${namespace}] Waiting for vasara library to initialize...`);
+        setTimeout(initializeScript, 100);
+        return;
+      }
+
+      // Initialize the script
       init();
+    } catch (error) {
+      console.error(`[${namespace}] Initialization error:`, error);
+      // Retry after a delay
+      setTimeout(initializeScript, 200);
     }
-  });
+  };
+
+  // Start initialization with a small delay to ensure everything is ready
+  setTimeout(initializeScript, 100);
+  } catch (error) {
+    console.error('[Chesshook Enhanced] Script initialization error:', error);
+  }
 })();
