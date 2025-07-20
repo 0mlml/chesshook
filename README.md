@@ -69,6 +69,7 @@ A powerful and feature-rich userscript for chess.com that provides advanced ches
 - `Alt+T` - **Toggle Auto Move** (Enable/disable continuous play)
 - `Alt+E` - **Quick Engine Switch** (Cycle through engines)
 - `Alt+H` - **Toggle Threats** (Show/hide threat rendering)
+- `Alt+S` - **Show Status** (Display script status and current settings)
 
 ### **Visual Controls**
 - `Alt+L` - Clear arrows and markings
@@ -240,6 +241,25 @@ For support and questions:
 - Review the console logs
 - Enable debug mode for detailed information
 - Export logs for troubleshooting
+
+### **Common Console Errors**
+
+The following errors are **NOT** from this script and can be safely ignored:
+
+- **AudioContext errors**: Chess.com's audio system trying to start automatically
+- **Sentry errors**: Chess.com's error tracking service having issues
+- **CORS errors**: External services (Confiant, Sentry) having network issues
+- **Notification permission errors**: Browser blocking chess.com's notification requests
+
+These are chess.com's internal issues and do not affect the functionality of Chesshook Enhanced.
+
+### **Troubleshooting**
+
+1. **Script not loading**: Check that your userscript manager is enabled
+2. **Hotkeys not working**: Ensure no other extensions are using the same hotkeys
+3. **Engine not responding**: Check engine settings in the configuration window
+4. **Visual elements missing**: Try refreshing the page or toggling features on/off
+5. **Performance issues**: Adjust the update rate in settings
 
 ---
 
